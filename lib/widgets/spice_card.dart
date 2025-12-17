@@ -3,7 +3,7 @@ import '../models/spice.dart';
 
 class SpiceCard extends StatelessWidget {
   final Spice spice;
-  const SpiceCard({required this.spice});
+  const SpiceCard({super.key, required this.spice});
 
   @override
   Widget build(BuildContext context) {

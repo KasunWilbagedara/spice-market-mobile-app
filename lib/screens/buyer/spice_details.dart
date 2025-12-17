@@ -4,7 +4,7 @@ import '../../models/spice.dart';
 class SpiceDetails extends StatelessWidget {
   final Spice spice;
 
-  SpiceDetails({required this.spice});
+  const SpiceDetails({super.key, required this.spice});
 
   @override
   Widget build(BuildContext context) {

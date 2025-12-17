@@ -7,6 +7,8 @@ import '../buyer/spice_details.dart';
 import '../buyer/cart_screen.dart';
 
 class BuyerHome extends StatefulWidget {
+  const BuyerHome({super.key});
+
   @override
   _BuyerHomeState createState() => _BuyerHomeState();
 }

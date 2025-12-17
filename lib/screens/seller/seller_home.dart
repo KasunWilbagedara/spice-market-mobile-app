@@ -5,6 +5,8 @@ import '../../providers/auth_provider.dart';
 import 'add_spice_screen.dart';
 
 class SellerHome extends StatefulWidget {
+  const SellerHome({super.key});
+
   @override
   _SellerHomeState createState() => _SellerHomeState();
 }

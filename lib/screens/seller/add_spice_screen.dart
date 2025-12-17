@@ -9,6 +9,8 @@ class AddSpiceScreen extends StatelessWidget {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
 
+  AddSpiceScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     final spiceProvider = Provider.of<SpiceProvider>(context);
