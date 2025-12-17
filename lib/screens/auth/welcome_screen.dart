@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/logo_widget.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -17,11 +18,14 @@ class WelcomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.local_fire_department, size: 80, color: Colors.white),
+            SpiceMarketLogo(size: 100, showText: false),
             SizedBox(height: 20),
             Text(
               'Spice Market',
-              style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 10),
@@ -43,12 +47,15 @@ class WelcomeScreen extends StatelessWidget {
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.orange.shade700,
                       padding: EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                     child: SizedBox(
                       width: double.infinity,
                       child: Center(
-                        child: Text('Login', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        child: Text('Login',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ),
@@ -61,12 +68,15 @@ class WelcomeScreen extends StatelessWidget {
                       foregroundColor: Colors.white,
                       side: BorderSide(color: Colors.white, width: 2),
                       padding: EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                     child: SizedBox(
                       width: double.infinity,
                       child: Center(
-                        child: Text('Sign Up', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        child: Text('Sign Up',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ),
