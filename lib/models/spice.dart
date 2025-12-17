@@ -5,8 +5,17 @@ class Spice {
   final String sellerId;
   final String? description;
   final String? category;
+  final String? imageUrl;
 
-  Spice({required this.id, required this.name, required this.price, required this.sellerId, this.description, this.category});
+  Spice({
+    required this.id,
+    required this.name,
+    required this.price,
+    required this.sellerId,
+    this.description,
+    this.category,
+    this.imageUrl,
+  });
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -15,6 +24,7 @@ class Spice {
         'sellerId': sellerId,
         'description': description,
         'category': category,
+        'imageUrl': imageUrl,
       };
 
   @override
