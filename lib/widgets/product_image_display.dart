@@ -12,8 +12,8 @@ class ProductImageDisplay extends StatelessWidget {
     this.imageUrl,
     required this.productName,
     this.height = 100,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

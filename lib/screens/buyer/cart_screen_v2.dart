@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../utils/page_transition.dart';
+import 'interactive_buyer_home.dart';
 
 class CartScreenV2 extends StatelessWidget {
   const CartScreenV2({super.key});
@@ -12,9 +14,14 @@ class CartScreenV2 extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: GestureDetector(
+          onTap: () => Navigator.push(
+              context, createSmoothTransition(InteractiveBuyerHome())),
+          child: Icon(Icons.arrow_back),
+        ),
         title: Text('Shopping Cart',
             style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.orange.shade700,
+        backgroundColor: Color(0xFF1B5E4B),
       ),
       body: cartProvider.cartItems.isEmpty
           ? Center(
@@ -22,7 +29,7 @@ class CartScreenV2 extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.shopping_cart_outlined,
-                      size: 100, color: Colors.orange.shade300),
+                      size: 100, color: Color(0xFF1B5E4B).withOpacity(0.3)),
                   SizedBox(height: 16),
                   Text('Your cart is empty',
                       style:
@@ -30,12 +37,15 @@ class CartScreenV2 extends StatelessWidget {
                   SizedBox(height: 24),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange.shade700,
+                      backgroundColor: Color(0xFF1B5E4B),
                       padding:
                           EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                     ),
                     onPressed: () {
-                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        createSmoothTransition(InteractiveBuyerHome()),
+                      );
                     },
                     child: Text('Continue Shopping'),
                   ),
@@ -59,7 +69,7 @@ class CartScreenV2 extends StatelessWidget {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
                             gradient: LinearGradient(
-                              colors: [Colors.white, Colors.orange.shade50],
+                              colors: [Colors.white, Colors.red.shade50],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -73,12 +83,12 @@ class CartScreenV2 extends StatelessWidget {
                                   width: 80,
                                   height: 80,
                                   decoration: BoxDecoration(
-                                    color: Colors.orange.shade200,
+                                    color: Colors.red.shade100,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Icon(
                                     Icons.local_fire_department,
-                                    color: Colors.orange.shade700,
+                                    color: Colors.red.shade600,
                                     size: 40,
                                   ),
                                 ),
@@ -94,7 +104,7 @@ class CartScreenV2 extends StatelessWidget {
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.orange.shade900,
+                                          color: Color(0xFF1B5E4B),
                                         ),
                                       ),
                                       SizedBox(height: 4),
@@ -113,7 +123,7 @@ class CartScreenV2 extends StatelessWidget {
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.green.shade700,
+                                          color: Colors.red.shade600,
                                         ),
                                       ),
                                     ],
@@ -194,14 +204,14 @@ class CartScreenV2 extends StatelessWidget {
                             style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade900),
+                                color: Color(0xFF1B5E4B)),
                           ),
                           Text(
                             '\$${(total + (total * 0.1) + (total * 0.08)).toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Colors.green.shade700,
+                              color: Colors.red.shade600,
                             ),
                           ),
                         ],
@@ -226,7 +236,7 @@ class CartScreenV2 extends StatelessWidget {
                           Expanded(
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green.shade700,
+                                backgroundColor: Color(0xFF1B5E4B),
                                 padding: EdgeInsets.symmetric(vertical: 14),
                               ),
                               onPressed: () {

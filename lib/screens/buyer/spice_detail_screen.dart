@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../utils/page_transition.dart';
+import 'interactive_buyer_home.dart';
 
 class SpiceDetailScreen extends StatefulWidget {
   final dynamic spice;
 
-  const SpiceDetailScreen({required this.spice, Key? key}) : super(key: key);
+  const SpiceDetailScreen({required this.spice, super.key});
 
   @override
   State<SpiceDetailScreen> createState() => _SpiceDetailScreenState();
@@ -39,7 +41,7 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${widget.spice.name} added to cart!'),
-        backgroundColor: Colors.green.shade700,
+        backgroundColor: Color(0xFF1B5E4B),
         duration: Duration(milliseconds: 1500),
       ),
     );
@@ -57,11 +59,23 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
             expandedHeight: 280,
             pinned: true,
             elevation: 0,
+            leading: GestureDetector(
+              onTap: () => Navigator.push(
+                  context, createSmoothTransition(InteractiveBuyerHome())),
+              child: Container(
+                margin: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.arrow_back, color: Colors.black),
+              ),
+            ),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.orange.shade700, Colors.red.shade600],
+                    colors: [Color(0xFF1B5E4B), Colors.red.shade600],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -96,17 +110,6 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
               ),
             ),
             backgroundColor: Colors.transparent,
-            leading: Container(
-              margin: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: IconButton(
-                icon: Icon(Icons.arrow_back, color: Colors.orange.shade700),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
           ),
           // Content
           SliverToBoxAdapter(
@@ -147,8 +150,8 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [
-                                    Colors.green.shade600,
-                                    Colors.green.shade400,
+                                    Colors.red.shade600,
+                                    Colors.red.shade400,
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(20),
@@ -446,7 +449,7 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
                   children: [
                     Icon(
                       Icons.shopping_cart,
-                      color: Colors.orange.shade700,
+                      color: Color(0xFF1B5E4B),
                       size: 24,
                     ),
                     SizedBox(width: 12),
@@ -455,7 +458,7 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.orange.shade700,
+                        color: Color(0xFF1B5E4B),
                       ),
                     ),
                   ],

@@ -7,8 +7,8 @@ class SpiceMarketLogo extends StatelessWidget {
   const SpiceMarketLogo({
     this.size = 80,
     this.showText = true,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
