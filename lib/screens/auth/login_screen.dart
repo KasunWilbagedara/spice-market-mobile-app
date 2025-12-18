@@ -17,6 +17,14 @@ class _LoginScreenState extends State<LoginScreen> {
   String? errorMessage;
 
   @override
+  void initState() {
+    super.initState();
+    // Set default credentials
+    emailController.text = 'buyer@example.com';
+    passwordController.text = 'password123';
+  }
+
+  @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
@@ -51,7 +59,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    final success = await auth.login(emailController.text, passwordController.text);
+    final success =
+        await auth.login(emailController.text, passwordController.text);
 
     setState(() {
       isLoading = false;
@@ -62,7 +71,86 @@ class _LoginScreenState extends State<LoginScreen> {
       if (userRole == 'seller') {
         Navigator.pushReplacementNamed(context, '/seller_home');
       } else {
-        Navigator.pushReplacementNamed(context, '/buyer_home');
+        // Show logo animation only
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => Center(
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.5, end: 1.0).animate(
+                CurvedAnimation(
+                  parent: ModalRoute.of(context)!.animation!,
+                  curve: Curves.easeOut,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Rotating background circle
+                      Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 30,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Rotating loading spinner
+                      SizedBox(
+                        width: 100,
+                        height: 100,
+                        child: CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Color(0xFF1B5E4B)),
+                          strokeWidth: 5,
+                        ),
+                      ),
+                      // Spice/fire logo
+                      Icon(
+                        Icons.local_fire_department,
+                        size: 50,
+                        color: Color(0xFF1B5E4B),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 40),
+                  FadeTransition(
+                    opacity: Tween<double>(begin: 0.5, end: 1.0).animate(
+                      CurvedAnimation(
+                        parent: ModalRoute.of(context)!.animation!,
+                        curve: Curves.easeIn,
+                      ),
+                    ),
+                    child: Text(
+                      'Spice Market',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        await Future.delayed(Duration(seconds: 2));
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/buyer_home');
+        }
       }
     } else {
       setState(() {
@@ -76,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Login'),
-        backgroundColor: Colors.orange.shade700,
+        backgroundColor: Color(0xFF1B5E4B),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -86,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.orange.shade700, Colors.orange.shade400],
+              colors: [Color(0xFF1B5E4B), Color(0xFF0F3D32)],
             ),
           ),
           child: Padding(
@@ -98,7 +186,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(height: 30),
                 Text(
                   'Welcome Back',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                 ),
                 SizedBox(height: 8),
                 Text(
@@ -116,7 +207,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: Text(
                       errorMessage!,
-                      style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                          color: Colors.red.shade700,
+                          fontWeight: FontWeight.w500),
                     ),
                   ),
                 if (errorMessage != null) SizedBox(height: 16),
@@ -126,7 +219,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: 'Email',
                     labelStyle: TextStyle(color: Colors.white70),
                     prefixIcon: Icon(Icons.email, color: Colors.white70),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide(color: Colors.white70),
@@ -149,14 +243,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelStyle: TextStyle(color: Colors.white70),
                     prefixIcon: Icon(Icons.lock, color: Colors.white70),
                     suffixIcon: IconButton(
-                      icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
+                      icon: Icon(
+                          obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.white70),
                       onPressed: () {
                         setState(() {
                           obscurePassword = !obscurePassword;
                         });
                       },
                     ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide(color: Colors.white70),
@@ -177,7 +276,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.orange.shade700,
                     padding: EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                     disabledBackgroundColor: Colors.grey.shade300,
                   ),
                   child: SizedBox(
@@ -189,10 +289,13 @@ class _LoginScreenState extends State<LoginScreen> {
                               width: 24,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(Colors.orange.shade700),
+                                valueColor: AlwaysStoppedAnimation(
+                                    Colors.orange.shade700),
                               ),
                             )
-                          : Text('Login', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          : Text('Login',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ),
@@ -200,14 +303,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("Don't have an account? ", style: TextStyle(color: Colors.white70)),
+                    Text("Don't have an account? ",
+                        style: TextStyle(color: Colors.white70)),
                     GestureDetector(
                       onTap: () {
                         Navigator.pushReplacementNamed(context, '/register');
                       },
                       child: Text(
                         'Sign Up',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, decoration: TextDecoration.underline),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline),
                       ),
                     ),
                   ],

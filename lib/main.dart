@@ -7,7 +7,7 @@ import 'screens/common/splash_screen.dart';
 import 'screens/auth/welcome_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
-import 'screens/buyer/buyer_home_v2.dart';
+import 'screens/buyer/interactive_buyer_home.dart';
 import 'screens/seller/seller_home.dart';
 
 void main() {
@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
           '/welcome': (_) => WelcomeScreen(),
           '/login': (_) => LoginScreen(),
           '/register': (_) => RegisterScreen(),
-          '/buyer_home': (_) => BuyerHomeV2(),
+          '/buyer_home': (_) => InteractiveBuyerHome(),
           '/seller_home': (_) => SellerHome(),
         },
       ),

@@ -11,8 +11,8 @@ class ImageUploadWidget extends StatefulWidget {
     required this.onImageSelected,
     this.label = 'Upload Image',
     this.initialImage,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<ImageUploadWidget> createState() => _ImageUploadWidgetState();
@@ -152,7 +152,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
                       ),
                     ],
                   )
-                : Container(
+                : SizedBox(
                     height: 200,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,

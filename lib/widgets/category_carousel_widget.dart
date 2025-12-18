@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 
 class CategoryCarouselWidget extends StatefulWidget {
-  const CategoryCarouselWidget({Key? key}) : super(key: key);
+  const CategoryCarouselWidget({super.key});
 
   @override
   State<CategoryCarouselWidget> createState() => _CategoryCarouselWidgetState();
@@ -148,8 +148,8 @@ class CategoryCircle extends StatelessWidget {
   const CategoryCircle({
     required this.category,
     required this.isSelected,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -198,8 +198,8 @@ class CategorySliderCard extends StatelessWidget {
   const CategorySliderCard({
     required this.category,
     required this.isCenter,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

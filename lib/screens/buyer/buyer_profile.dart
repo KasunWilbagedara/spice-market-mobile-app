@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/page_transition.dart';
+import 'interactive_buyer_home.dart';
 
 class BuyerProfile extends StatelessWidget {
+  const BuyerProfile({super.key});
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
@@ -10,8 +14,14 @@ class BuyerProfile extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: GestureDetector(
+          onTap: () => Navigator.push(
+              context, createSmoothTransition(InteractiveBuyerHome())),
+          child: Icon(Icons.arrow_back),
+        ),
         title: Text('Profile', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.orange.shade700,
+        backgroundColor: Color(0xFF1B5E4B),
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -20,30 +30,40 @@ class BuyerProfile extends StatelessWidget {
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.orange.shade700, Colors.orange.shade500],
+                  colors: [Color(0xFF1B5E4B), Color(0xFF0F3D32)],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(30),
+                  bottomRight: Radius.circular(30),
+                ),
               ),
-              padding: EdgeInsets.symmetric(vertical: 32),
+              padding: EdgeInsets.symmetric(vertical: 40),
               child: Column(
                 children: [
                   Container(
-                    width: 100,
-                    height: 100,
+                    width: 120,
+                    height: 120,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(blurRadius: 10, spreadRadius: 2)],
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 15,
+                          spreadRadius: 3,
+                        )
+                      ],
                     ),
-                    child: Icon(Icons.person,
-                        size: 50, color: Colors.orange.shade700),
+                    child:
+                        Icon(Icons.person, size: 60, color: Color(0xFF1B5E4B)),
                   ),
-                  SizedBox(height: 16),
+                  SizedBox(height: 20),
                   Text(
                     user?.name ?? 'Guest',
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 26,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -63,44 +83,54 @@ class BuyerProfile extends StatelessWidget {
                 children: [
                   // Account Info Card
                   Card(
-                    elevation: 2,
+                    elevation: 3,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Account Information',
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade900),
-                          ),
-                          SizedBox(height: 16),
-                          _buildInfoRow('Name', user?.name ?? 'N/A'),
-                          Divider(height: 16),
-                          _buildInfoRow('Email', user?.email ?? 'N/A'),
-                          Divider(height: 16),
-                          _buildInfoRow('Role', 'Buyer'),
-                          Divider(height: 16),
-                          _buildInfoRow('Member Since', 'Dec 2024'),
-                        ],
+                        borderRadius: BorderRadius.circular(15)),
+                    shadowColor: Color(0xFF1B5E4B).withOpacity(0.2),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                          color: Color(0xFF1B5E4B).withOpacity(0.1),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Account Information',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1B5E4B)),
+                            ),
+                            SizedBox(height: 16),
+                            _buildInfoRow('Name', user?.name ?? 'N/A'),
+                            Divider(height: 16),
+                            _buildInfoRow('Email', user?.email ?? 'N/A'),
+                            Divider(height: 16),
+                            _buildInfoRow('Role', 'Buyer'),
+                            Divider(height: 16),
+                            _buildInfoRow('Member Since', 'Dec 2024'),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                   SizedBox(height: 20),
                   // Settings Card
                   Card(
-                    elevation: 2,
+                    elevation: 3,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(15)),
+                    shadowColor: Color(0xFF1B5E4B).withOpacity(0.1),
                     child: Column(
                       children: [
                         ListTile(
-                          leading: Icon(Icons.receipt,
-                              color: Colors.orange.shade700),
+                          leading:
+                              Icon(Icons.receipt, color: Color(0xFF1B5E4B)),
                           title: Text('Order History'),
                           trailing: Icon(Icons.arrow_forward_ios, size: 16),
                           onTap: () {
@@ -112,8 +142,8 @@ class BuyerProfile extends StatelessWidget {
                         ),
                         Divider(height: 0),
                         ListTile(
-                          leading: Icon(Icons.favorite,
-                              color: Colors.orange.shade700),
+                          leading:
+                              Icon(Icons.favorite, color: Color(0xFF1B5E4B)),
                           title: Text('Wishlist'),
                           trailing: Icon(Icons.arrow_forward_ios, size: 16),
                           onTap: () {
@@ -124,8 +154,8 @@ class BuyerProfile extends StatelessWidget {
                         ),
                         Divider(height: 0),
                         ListTile(
-                          leading: Icon(Icons.settings,
-                              color: Colors.orange.shade700),
+                          leading:
+                              Icon(Icons.settings, color: Color(0xFF1B5E4B)),
                           title: Text('Settings'),
                           trailing: Icon(Icons.arrow_forward_ios, size: 16),
                           onTap: () {
@@ -136,8 +166,7 @@ class BuyerProfile extends StatelessWidget {
                         ),
                         Divider(height: 0),
                         ListTile(
-                          leading:
-                              Icon(Icons.help, color: Colors.orange.shade700),
+                          leading: Icon(Icons.help, color: Color(0xFF1B5E4B)),
                           title: Text('Help & Support'),
                           trailing: Icon(Icons.arrow_forward_ios, size: 16),
                           onTap: () {
@@ -150,7 +179,7 @@ class BuyerProfile extends StatelessWidget {
                       ],
                     ),
                   ),
-                  SizedBox(height: 20),
+                  SizedBox(height: 24),
                   // Logout Button
                   SizedBox(
                     width: double.infinity,
@@ -160,10 +189,12 @@ class BuyerProfile extends StatelessWidget {
                           style: TextStyle(
                               fontSize: 16, fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade700,
-                        padding: EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: Colors.red.shade600,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(15)),
+                        elevation: 4,
                       ),
                       onPressed: () {
                         showDialog(
