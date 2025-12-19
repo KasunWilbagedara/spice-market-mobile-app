@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/cart_provider.dart';
-import '../../utils/page_transition.dart';
-import 'interactive_buyer_home.dart';
 
 class CartScreenV2 extends StatelessWidget {
   const CartScreenV2({super.key});
@@ -14,14 +12,11 @@ class CartScreenV2 extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        leading: GestureDetector(
-          onTap: () => Navigator.push(
-              context, createSmoothTransition(InteractiveBuyerHome())),
-          child: Icon(Icons.arrow_back),
-        ),
+        leading: SizedBox.shrink(),
         title: Text('Shopping Cart',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Color(0xFF1B5E4B),
+        elevation: 2,
       ),
       body: cartProvider.cartItems.isEmpty
           ? Center(
@@ -32,22 +27,25 @@ class CartScreenV2 extends StatelessWidget {
                       size: 100, color: Color(0xFF1B5E4B).withOpacity(0.3)),
                   SizedBox(height: 16),
                   Text('Your cart is empty',
-                      style:
-                          TextStyle(fontSize: 18, color: Colors.grey.shade700)),
+                      style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w500)),
                   SizedBox(height: 24),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF1B5E4B),
                       padding:
                           EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
                     ),
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        createSmoothTransition(InteractiveBuyerHome()),
-                      );
+                      Navigator.of(context).pop();
                     },
-                    child: Text('Continue Shopping'),
+                    child: Text('Continue Shopping',
+                        style: TextStyle(fontSize: 16, color: Colors.white)),
                   ),
                 ],
               ),
@@ -61,15 +59,17 @@ class CartScreenV2 extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final spice = cartProvider.cartItems[index];
                       return Card(
-                        margin: EdgeInsets.symmetric(vertical: 8),
-                        elevation: 2,
+                        margin:
+                            EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                        elevation: 3,
+                        shadowColor: Colors.black26,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(16)),
                         child: Container(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                             gradient: LinearGradient(
-                              colors: [Colors.white, Colors.red.shade50],
+                              colors: [Colors.white, Color(0xFFFFF8F0)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -83,12 +83,12 @@ class CartScreenV2 extends StatelessWidget {
                                   width: 80,
                                   height: 80,
                                   decoration: BoxDecoration(
-                                    color: Colors.red.shade100,
+                                    color: Colors.orange.shade100,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Icon(
                                     Icons.local_fire_department,
-                                    color: Colors.red.shade600,
+                                    color: Colors.orange.shade700,
                                     size: 40,
                                   ),
                                 ),
@@ -123,7 +123,7 @@ class CartScreenV2 extends StatelessWidget {
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.red.shade600,
+                                          color: Colors.orange.shade700,
                                         ),
                                       ),
                                     ],

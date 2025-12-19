@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../utils/page_transition.dart';
-import 'interactive_buyer_home.dart';
 
 class BuyerProfile extends StatelessWidget {
   const BuyerProfile({super.key});
@@ -14,14 +12,11 @@ class BuyerProfile extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        leading: GestureDetector(
-          onTap: () => Navigator.push(
-              context, createSmoothTransition(InteractiveBuyerHome())),
-          child: Icon(Icons.arrow_back),
-        ),
-        title: Text('Profile', style: TextStyle(fontWeight: FontWeight.bold)),
+        leading: SizedBox.shrink(),
+        title: Text('Profile',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: Color(0xFF1B5E4B),
-        elevation: 0,
+        elevation: 2,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -30,7 +25,7 @@ class BuyerProfile extends StatelessWidget {
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF1B5E4B), Color(0xFF0F3D32)],
+                  colors: [Color(0xFF1B5E4B), Color(0xFF2D8659)],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
@@ -46,7 +41,9 @@ class BuyerProfile extends StatelessWidget {
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      gradient: LinearGradient(
+                        colors: [Colors.white, Colors.orange.shade100],
+                      ),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -72,6 +69,22 @@ class BuyerProfile extends StatelessWidget {
                   Text(
                     user?.email ?? '',
                     style: TextStyle(fontSize: 14, color: Colors.white70),
+                  ),
+                  SizedBox(height: 16),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Buyer Account',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -191,21 +204,26 @@ class BuyerProfile extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red.shade600,
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(vertical: 16),
+                        padding: EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15)),
+                            borderRadius: BorderRadius.circular(12)),
                         elevation: 4,
                       ),
                       onPressed: () {
                         showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
-                            title: Text('Logout'),
-                            content: Text('Are you sure you want to logout?'),
+                            title: Text('Logout',
+                                style: TextStyle(
+                                    color: Color(0xFF1B5E4B),
+                                    fontWeight: FontWeight.bold)),
+                            content: Text('Are you sure you want to logout?',
+                                style: TextStyle(color: Colors.grey.shade700)),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context),
-                                child: Text('Cancel'),
+                                child: Text('Cancel',
+                                    style: TextStyle(color: Color(0xFF1B5E4B))),
                               ),
                               TextButton(
                                 onPressed: () {
@@ -214,7 +232,9 @@ class BuyerProfile extends StatelessWidget {
                                       context, '/welcome');
                                 },
                                 child: Text('Logout',
-                                    style: TextStyle(color: Colors.red)),
+                                    style: TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.bold)),
                               ),
                             ],
                           ),
