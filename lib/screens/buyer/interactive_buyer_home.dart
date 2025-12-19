@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/spice_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../utils/page_transition.dart';
+import '../../widgets/logo_widget.dart';
 import '../buyer/spice_detail_screen.dart';
 import '../buyer/cart_screen_v2.dart';
 import '../buyer/buyer_profile.dart';
@@ -15,9 +16,53 @@ class InteractiveBuyerHome extends StatefulWidget {
 }
 
 class _InteractiveBuyerHomeState extends State<InteractiveBuyerHome> {
+  int _selectedTabIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+        () => Provider.of<SpiceProvider>(context, listen: false).loadSpices());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _selectedTabIndex,
+        children: const [
+          HomeScreen(),
+          CartScreenV2(),
+          BuyerProfile(),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedTabIndex,
+        onTap: (i) => setState(() => _selectedTabIndex = i),
+        selectedItemColor: Color(0xFF1B5E4B),
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.shopping_cart), label: 'Cart'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
+    );
+  }
+}
+
+// Extracted Home Screen - now won't freeze
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   String _selectedCategory = 'All';
-  int _selectedTabIndex = 0;
   final TextEditingController _searchController = TextEditingController();
 
   final List<Map<String, dynamic>> categories = [
@@ -29,18 +74,17 @@ class _InteractiveBuyerHomeState extends State<InteractiveBuyerHome> {
     {
       'name': 'Spicy',
       'icon': Icons.local_fire_department,
-      'color': Color(0xFFFFE0B2)
+      'color': Color(0xFFFF6B6B)
     },
-    {'name': 'Mild', 'icon': Icons.eco, 'color': Color(0xFFDCEDC8)},
-    {'name': 'Sweet', 'icon': Icons.favorite, 'color': Color(0xFFFFF9C4)},
-    {'name': 'Exotic', 'icon': Icons.star_rounded, 'color': Color(0xFFD7CCC8)},
+    {'name': 'Mild', 'icon': Icons.eco, 'color': Color(0xFF4ECDC4)},
+    {'name': 'Sweet', 'icon': Icons.favorite, 'color': Color(0xFFFFD93D)},
+    {'name': 'Exotic', 'icon': Icons.star_rounded, 'color': Color(0xFF6BCB77)},
   ];
 
   @override
-  void initState() {
-    super.initState();
-    Future.microtask(
-        () => Provider.of<SpiceProvider>(context, listen: false).loadSpices());
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   List<dynamic> getFilteredSpices(List<dynamic> spices) {
@@ -59,57 +103,35 @@ class _InteractiveBuyerHomeState extends State<InteractiveBuyerHome> {
     final cartProvider = Provider.of<CartProvider>(context);
     final filteredSpices = getFilteredSpices(spiceProvider.spices);
 
-    Widget currentScreen;
-    if (_selectedTabIndex == 0) {
-      currentScreen = Stack(
-        children: [
-          Container(
-            height: 320,
-            decoration: BoxDecoration(
-              color: Color(0xFF1B5E4B),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(50),
-                bottomRight: Radius.circular(50),
-              ),
+    return Stack(
+      children: [
+        Container(
+          height: 300,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF1B5E4B), Color(0xFF2D8659)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(50),
+              bottomRight: Radius.circular(50),
             ),
           ),
-          SingleChildScrollView(
-            child: Column(
-              children: [
-                _buildTopSection(cartProvider),
-                _buildCategoryList(),
-                _buildYouMightNeedSection(filteredSpices, cartProvider),
-                _buildProductGrid(filteredSpices, cartProvider),
-              ],
-            ),
-          ),
-        ],
-      );
-    } else if (_selectedTabIndex == 1) {
-      currentScreen = CartScreenV2();
-    } else {
-      currentScreen = BuyerProfile();
-    }
-
-    return Scaffold(
-      body: AnimatedSwitcher(
-        duration: Duration(milliseconds: 300),
-        child: KeyedSubtree(
-          key: ValueKey(_selectedTabIndex),
-          child: currentScreen,
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedTabIndex,
-        onTap: (i) => setState(() => _selectedTabIndex = i),
-        selectedItemColor: Color(0xFF1B5E4B),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_cart), label: 'Cart'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
+        SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildTopSection(cartProvider),
+              _buildCategoryList(),
+              _buildSectionTitle("Trending Now"),
+              _buildYouMightNeedSection(filteredSpices, cartProvider),
+              _buildSectionTitle("All Spices"),
+              _buildProductGrid(filteredSpices, cartProvider),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -119,45 +141,36 @@ class _InteractiveBuyerHomeState extends State<InteractiveBuyerHome> {
         padding: EdgeInsets.all(16),
         child: Row(
           children: [
+            SpiceMarketLogo(size: 50, showText: false),
+            SizedBox(width: 12),
             Expanded(
               child: TextField(
                 controller: _searchController,
                 onChanged: (v) => setState(() => _searchQuery = v),
                 decoration: InputDecoration(
                   hintText: 'Search spices',
-                  prefixIcon: Icon(Icons.search),
+                  hintStyle: TextStyle(color: Colors.grey.shade600),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(25),
                     borderSide: BorderSide.none,
                   ),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
               ),
             ),
             SizedBox(width: 12),
             GestureDetector(
-              onTap: () => setState(() => _selectedTabIndex = 1),
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.shopping_cart),
-                  ),
-                  if (cart.cartItems.isNotEmpty)
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: CircleAvatar(
-                        radius: 9,
-                        backgroundColor: Colors.red,
-                        child: Text(
-                          cart.cartItems.length.toString(),
-                          style: TextStyle(fontSize: 11, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                ],
+              onTap: () {
+                Navigator.of(context).pushNamed('/welcome');
+              },
+              child: CircleAvatar(
+                backgroundColor: Colors.white,
+                radius: 22,
+                child: Icon(Icons.logout, color: Color(0xFF1B5E4B), size: 20),
               ),
             )
           ],
@@ -166,109 +179,26 @@ class _InteractiveBuyerHomeState extends State<InteractiveBuyerHome> {
     );
   }
 
-  /// 🔴 THIS METHOD WAS CAUSING THE ERROR – NOW FIXED
-  Widget _buildCategoryList() {
-    return Container(
-      color: Colors.transparent,
-      padding: EdgeInsets.symmetric(vertical: 20, horizontal: 0),
-      child: Column(
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 20, 16, 12),
+      child: Row(
         children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: BouncingScrollPhysics(),
-            padding: EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: categories.map((cat) {
-                final selected = _selectedCategory == cat['name'];
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedCategory = cat['name']),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 14),
-                    child: AnimatedScale(
-                      scale: selected ? 1.15 : 1.0,
-                      duration: Duration(milliseconds: 300),
-                      child: Column(
-                        children: [
-                          AnimatedContainer(
-                            duration: Duration(milliseconds: 300),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: selected
-                                      ? cat['color'].withOpacity(0.4)
-                                      : Colors.transparent,
-                                  blurRadius: 12,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            child: CircleAvatar(
-                              radius: selected ? 32 : 28,
-                              backgroundColor:
-                                  selected ? cat['color'] : Colors.white,
-                              child: AnimatedScale(
-                                scale: selected ? 1.1 : 1.0,
-                                duration: Duration(milliseconds: 300),
-                                child: Icon(
-                                  cat['icon'],
-                                  color: selected
-                                      ? Colors.white
-                                      : Color(0xFF1B5E4B).withOpacity(0.6),
-                                  size: selected ? 24 : 20,
-                                ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          AnimatedOpacity(
-                            opacity: selected ? 1.0 : 0.7,
-                            duration: Duration(milliseconds: 300),
-                            child: Text(
-                              cat['name'],
-                              style: TextStyle(
-                                fontSize: selected ? 13 : 12,
-                                fontWeight: selected
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                                color: selected
-                                    ? Color(0xFF1B5E4B)
-                                    : Colors.grey.shade700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1B5E4B),
             ),
           ),
-          SizedBox(height: 12),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: Stack(
-              children: [
-                Container(
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                AnimatedContainer(
-                  duration: Duration(milliseconds: 300),
-                  height: 4,
-                  width: 25,
-                  margin: EdgeInsets.only(left: _getIndicatorPosition()),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF1B5E4B),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ],
+          Spacer(),
+          Text(
+            'View All',
+            style: TextStyle(
+              fontSize: 12,
+              color: Color(0xFF1B5E4B),
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -276,24 +206,140 @@ class _InteractiveBuyerHomeState extends State<InteractiveBuyerHome> {
     );
   }
 
-  double _getIndicatorPosition() {
-    final index = categories.indexWhere((c) => c['name'] == _selectedCategory);
-    return index < 0 ? 0 : index * 90.0;
+  Widget _buildCategoryList() {
+    return Container(
+      color: Colors.transparent,
+      padding: EdgeInsets.symmetric(vertical: 20, horizontal: 0),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 110,
+            child: Center(
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                physics: BouncingScrollPhysics(),
+                shrinkWrap: true,
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                children: categories.map((cat) {
+                  final selected = _selectedCategory == cat['name'];
+                  return GestureDetector(
+                    onTap: () =>
+                        setState(() => _selectedCategory = cat['name']),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: AnimatedScale(
+                        scale: selected ? 1.15 : 1.0,
+                        duration: Duration(milliseconds: 300),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AnimatedContainer(
+                              duration: Duration(milliseconds: 300),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: selected
+                                        ? cat['color'].withOpacity(0.4)
+                                        : Colors.transparent,
+                                    blurRadius: 12,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: CircleAvatar(
+                                radius: selected ? 32 : 28,
+                                backgroundColor: selected
+                                    ? cat['color']
+                                    : Colors.white.withOpacity(0.9),
+                                child: AnimatedScale(
+                                  scale: selected ? 1.1 : 1.0,
+                                  duration: Duration(milliseconds: 300),
+                                  child: Icon(
+                                    cat['icon'],
+                                    color:
+                                        selected ? Colors.white : cat['color'],
+                                    size: selected ? 24 : 20,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            AnimatedOpacity(
+                              opacity: selected ? 1.0 : 0.8,
+                              duration: Duration(milliseconds: 300),
+                              child: Text(
+                                cat['name'],
+                                style: TextStyle(
+                                  fontSize: selected ? 13 : 12,
+                                  fontWeight: selected
+                                      ? FontWeight.bold
+                                      : FontWeight.w600,
+                                  color: selected
+                                      ? Color(0xFF1B5E4B)
+                                      : Color(0xFF1B5E4B),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildYouMightNeedSection(List items, CartProvider cart) {
     final limited = items.take(3).toList();
-    return Padding(
-      padding: EdgeInsets.all(16),
-      child: Row(
-        children: limited
-            .map((e) => Expanded(child: _buildProductCard(e, cart)))
-            .toList(),
+    if (limited.isEmpty) {
+      return SizedBox.shrink();
+    }
+    return SizedBox(
+      height: 260,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          physics: BouncingScrollPhysics(),
+          itemCount: limited.length,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: SizedBox(
+                width: 140,
+                child: _buildProductCard(limited[index], cart),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildProductGrid(List items, CartProvider cart) {
+    if (items.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.all(32),
+        child: Column(
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No spices found',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
     return GridView.builder(
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),
@@ -316,27 +362,70 @@ class _InteractiveBuyerHomeState extends State<InteractiveBuyerHome> {
         createSmoothTransition(SpiceDetailScreen(spice: item)),
       ),
       child: Card(
+        elevation: 4,
+        shadowColor: Colors.black26,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Column(
           children: [
             Expanded(
-              child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                  ? Image.network(item.imageUrl!, fit: BoxFit.cover)
-                  : Icon(Icons.local_fire_department, size: 40),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  color: Colors.grey.shade100,
+                ),
+                child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                    ? Image.network(item.imageUrl!, fit: BoxFit.cover)
+                    : Icon(Icons.local_fire_department,
+                        size: 40, color: Colors.orange),
+              ),
             ),
             Padding(
-              padding: EdgeInsets.all(8),
+              padding: EdgeInsets.all(10),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text("\$${item.price.toStringAsFixed(2)}"),
-                  ElevatedButton(
-                    onPressed: () {
-                      cart.addToCart(item);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("${item.name} added")),
-                      );
-                    },
-                    child: Icon(Icons.add),
+                  Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFF1B5E4B),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    "\$${item.price.toStringAsFixed(2)}",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF1B5E4B),
+                        padding: EdgeInsets.symmetric(vertical: 6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () {
+                        cart.addToCart(item);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("${item.name} added to cart"),
+                            duration: Duration(seconds: 1),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      },
+                      child: Icon(Icons.add, color: Colors.white, size: 18),
+                    ),
                   )
                 ],
               ),

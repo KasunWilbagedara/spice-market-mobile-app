@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../utils/page_transition.dart';
+import '../../widgets/seller_profile_widget.dart';
+import '../../widgets/reviews_widget.dart';
+import '../../widgets/comments_widget.dart';
 import 'interactive_buyer_home.dart';
 
 class SpiceDetailScreen extends StatefulWidget {
@@ -404,6 +407,38 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
                       ),
                     ),
                   ),
+                  // Seller Profile Section
+                  Padding(
+                    padding: EdgeInsets.all(20),
+                    child: SellerProfileWidget(
+                      sellerId: spice.sellerId,
+                      sellerName: 'Premium Spice Co.',
+                      rating: 4.8,
+                      reviewCount: 342,
+                    ),
+                  ),
+                  // Reviews Section
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: ReviewsWidget(
+                      reviews: spice.reviews,
+                      averageRating: spice.averageRating,
+                      onAddReview: () {
+                        _showAddReviewDialog();
+                      },
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  // Comments Section
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: CommentsWidget(
+                      comments: spice.comments,
+                      onAddComment: () {
+                        _showAddCommentDialog();
+                      },
+                    ),
+                  ),
                   SizedBox(height: 120),
                 ],
               ),
@@ -481,6 +516,136 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
           color: Colors.grey.shade700,
           height: 1.5,
         ),
+      ),
+    );
+  }
+
+  void _showAddReviewDialog() {
+    double rating = 5.0;
+    final commentController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Write a Review',
+              style: TextStyle(
+                  color: Color(0xFF1B5E4B), fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('How would you rate this product?'),
+                SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => rating = (index + 1).toDouble());
+                      },
+                      child: Icon(
+                        index < rating.toInt() ? Icons.star : Icons.star_border,
+                        color: Colors.amber,
+                        size: 32,
+                      ),
+                    );
+                  }),
+                ),
+                SizedBox(height: 20),
+                TextField(
+                  controller: commentController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: 'Share your experience...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: Color(0xFF1B5E4B), width: 1.5),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          BorderSide(color: Color(0xFF1B5E4B), width: 1.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel', style: TextStyle(color: Color(0xFF1B5E4B))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF1B5E4B),
+              ),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Thank you for your review!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                Navigator.pop(context);
+              },
+              child: Text('Submit', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddCommentDialog() {
+    final commentController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Ask a Question',
+            style: TextStyle(
+                color: Color(0xFF1B5E4B), fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: TextField(
+            controller: commentController,
+            maxLines: 4,
+            decoration: InputDecoration(
+              hintText: 'Ask other customers about this product...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Color(0xFF1B5E4B), width: 1.5),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Color(0xFF1B5E4B), width: 1.5),
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Color(0xFF1B5E4B))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF1B5E4B),
+            ),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Your question has been posted!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+              Navigator.pop(context);
+            },
+            child: Text('Post', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

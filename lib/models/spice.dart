@@ -6,6 +6,9 @@ class Spice {
   final String? description;
   final String? category;
   final String? imageUrl;
+  final List<Map<String, dynamic>> reviews;
+  final List<Map<String, dynamic>> comments;
+  final double averageRating;
 
   Spice({
     required this.id,
@@ -15,6 +18,9 @@ class Spice {
     this.description,
     this.category,
     this.imageUrl,
+    this.reviews = const [],
+    this.comments = const [],
+    this.averageRating = 0.0,
   });
 
   Map<String, dynamic> toMap() => {
@@ -25,6 +31,9 @@ class Spice {
         'description': description,
         'category': category,
         'imageUrl': imageUrl,
+        'reviews': reviews,
+        'comments': comments,
+        'averageRating': averageRating,
       };
 
   @override
