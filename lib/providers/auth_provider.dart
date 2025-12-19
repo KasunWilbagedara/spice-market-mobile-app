@@ -44,4 +44,9 @@ class AuthProvider with ChangeNotifier {
     // In a real app, clear local storage here
     notifyListeners();
   }
+
+  void updateUser(User user) {
+    _user = user;
+    notifyListeners();
+  }
 }
