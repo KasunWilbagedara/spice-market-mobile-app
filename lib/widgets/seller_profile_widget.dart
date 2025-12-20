@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import '../screens/buyer/seller_store_screen.dart';
 
 class SellerProfileWidget extends StatelessWidget {
   final String sellerId;
   final String sellerName;
   final double rating;
   final int reviewCount;
+  final Function(String, String)? onMessagePressed;
 
   const SellerProfileWidget({
     required this.sellerId,
     required this.sellerName,
     this.rating = 4.5,
     this.reviewCount = 128,
+    this.onMessagePressed,
     super.key,
   });
 
@@ -99,43 +102,65 @@ class SellerProfileWidget extends StatelessWidget {
                       ),
                     ),
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Message feature coming soon!'),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
+                      if (onMessagePressed != null) {
+                        onMessagePressed!(sellerId, sellerName);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Opening message screen...'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                      }
                     },
-                    child: Text('Message Seller',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        )),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.message, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text('Message',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            )),
+                      ],
+                    ),
                   ),
                 ),
                 SizedBox(width: 12),
                 Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Color(0xFF1B5E4B), width: 2),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade700,
                       padding: EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('View store coming soon!'),
-                          backgroundColor: Colors.orange,
+                      // Navigate to seller store
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SellerStoreScreen(
+                            sellerId: sellerId,
+                            sellerName: sellerName,
+                          ),
                         ),
                       );
                     },
-                    child: Text('View Store',
-                        style: TextStyle(
-                          color: Color(0xFF1B5E4B),
-                          fontWeight: FontWeight.bold,
-                        )),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.store, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text('View Store',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            )),
+                      ],
+                    ),
                   ),
                 ),
               ],

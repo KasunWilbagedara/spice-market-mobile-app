@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1010804350142",
+    "project_id": "spice-market-49a7b",
+    "storage_bucket": "spice-market-49a7b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1010804350142:android:5283680665733e8e0b12ef",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDukwXgEuVAgA7D9Rzi-DAekFEjS7TCdHc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -5,7 +5,9 @@ import '../../utils/page_transition.dart';
 import '../../widgets/seller_profile_widget.dart';
 import '../../widgets/reviews_widget.dart';
 import '../../widgets/comments_widget.dart';
+import '../../services/firebase_service.dart';
 import 'interactive_buyer_home.dart';
+import 'messaging_screen.dart';
 
 class SpiceDetailScreen extends StatefulWidget {
   final dynamic spice;
@@ -20,6 +22,7 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   int _quantity = 1;
+  String _sellerName = 'Loading...';
 
   @override
   void initState() {
@@ -28,6 +31,26 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
       duration: Duration(milliseconds: 500),
       vsync: this,
     );
+    _loadSellerName();
+  }
+
+  Future<void> _loadSellerName() async {
+    try {
+      final sellerDoc =
+          await FirebaseService.getSellerName(widget.spice.sellerId);
+      if (mounted) {
+        setState(() {
+          _sellerName = sellerDoc;
+        });
+      }
+    } catch (e) {
+      print('Error loading seller name: $e');
+      if (mounted) {
+        setState(() {
+          _sellerName = 'Unknown Seller';
+        });
+      }
+    }
   }
 
   @override
@@ -412,9 +435,24 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
                     padding: EdgeInsets.all(20),
                     child: SellerProfileWidget(
                       sellerId: spice.sellerId,
-                      sellerName: 'Premium Spice Co.',
+                      sellerName: _sellerName,
                       rating: 4.8,
                       reviewCount: 342,
+                      onMessagePressed: (sellerId, sellerName) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MessagingScreen(
+                              args: MessageScreenArguments(
+                                sellerId: sellerId,
+                                sellerName: sellerName,
+                                buyerId: 'buyer_123',
+                                buyerName: 'You',
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   // Reviews Section
