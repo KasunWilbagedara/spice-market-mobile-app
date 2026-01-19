@@ -18,6 +18,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final uuid = Uuid();
   int _currentStep = 0;
   bool _isProcessing = false;
+  Order? _currentOrder; // Store order for display
 
   // Billing Details Form Fields
   final _fullNameController = TextEditingController();
@@ -245,20 +246,52 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         status: 'pending',
       );
 
+      // Store order for display in summary
+      setState(() => _currentOrder = order);
+
       print('👤 Auth user ID: "${authProvider.user?.id}"');
       print('🛒 Order buyerId: "${order.buyerId}"');
       print('🛒 Order buyerId length: ${order.buyerId.length}');
       print('🛒 Order buyerId is empty: ${order.buyerId.isEmpty}');
 
       // Save order to Firebase
+      print('📝 ═════════════════════════════════════════');
       print('📝 Creating order: ${order.id}');
+      print('📝 Order details:');
+      print('   - buyerId: "${order.buyerId}"');
+      print('   - items count: ${order.items.length}');
+      print('   - items: ${order.items}');
+      print('   - totalAmount: ${order.totalAmount}');
       print('📝 About to call FirebaseService.createOrder...');
-      final orderId = await FirebaseService.createOrder(order);
-      print('✅ Order saved to Firebase successfully! Order ID: $orderId');
-      print('🔔 Seller notifications created automatically during order creation');
+      print('📝 ═════════════════════════════════════════');
 
-      // Clear cart after successful order
-      cartProvider.clear();
+      try {
+        final orderId = await FirebaseService.createOrder(order);
+        print('✅ ═════════════════════════════════════════');
+        print('✅ Order saved to Firebase successfully!');
+        print('✅ Order ID: $orderId');
+        print('✅ ═════════════════════════════════════════');
+        print(
+            '🔔 Seller notifications created automatically during order creation');
+      } catch (orderError) {
+        print('❌ ═════════════════════════════════════════');
+        print('❌ ERROR creating order!');
+        print('❌ Error: $orderError');
+        print('❌ Error type: ${orderError.runtimeType}');
+        print('❌ Stack trace: $orderError');
+        print('❌ ═════════════════════════════════════════');
+
+        setState(() => _isProcessing = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Order creation failed: $orderError'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
+        return;
+      }
 
       setState(() => _isProcessing = false);
 
@@ -290,6 +323,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   backgroundColor: Color(0xFF1B5E4B),
                 ),
                 onPressed: () {
+                  // Clear cart when user confirms
+                  cartProvider.clear();
+                  _currentOrder = null;
                   Navigator.pop(context); // Close dialog
                   Navigator.pop(context); // Go back to cart
                 },
@@ -336,6 +372,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cartProvider = Provider.of<CartProvider>(context);
+
+    print('🔍 CHECKOUT BUILD - Cart items: ${cartProvider.cartItems.length}');
+    for (var i = 0; i < cartProvider.cartItems.length; i++) {
+      print(
+          '   Item $i: ${cartProvider.cartItems[i].name} - ${cartProvider.cartItems[i].price}');
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Checkout'),
@@ -647,6 +691,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _buildOrderSummaryStep() {
     final cartProvider = Provider.of<CartProvider>(context);
+
+    // Use stored order if available, otherwise build from cart
+    final List<dynamic> items = _currentOrder?.items ??
+        cartProvider.cartItems
+            .map((item) => {
+                  'spiceId': item.id,
+                  'name': item.name,
+                  'price': item.price,
+                  'quantity': 1,
+                  'sellerId': item.sellerId,
+                })
+            .toList();
+
+    final double totalAmount = _currentOrder?.totalAmount ?? cartProvider.total;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -674,24 +733,63 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 ),
                 SizedBox(height: 12),
-                ...cartProvider.cartItems.map((item) => Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.name,
-                              style: TextStyle(fontSize: 14),
+                ...items.map((item) {
+                  final itemName =
+                      item is Map ? item['name'] ?? 'Unknown' : item.name;
+                  final itemPrice =
+                      item is Map ? item['price'] ?? 0.0 : item.price;
+                  final sellerId =
+                      item is Map ? item['sellerId'] ?? '' : item.sellerId;
+                  return Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                itemName,
+                                style: TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.w500),
+                              ),
                             ),
-                          ),
-                          Text(
-                            '\$${item.price.toStringAsFixed(2)}',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    )),
+                            Text(
+                              '\$${(itemPrice as num).toStringAsFixed(2)}',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 6),
+                        FutureBuilder<Map<String, dynamic>?>(
+                          future: FirebaseService.getUserProfile(sellerId),
+                          builder: (context, snapshot) {
+                            String sellerName = 'Unknown Seller';
+                            if (snapshot.connectionState ==
+                                    ConnectionState.done &&
+                                snapshot.hasData &&
+                                snapshot.data != null) {
+                              sellerName =
+                                  snapshot.data!['name'] ?? 'Unknown Seller';
+                            }
+                            return Padding(
+                              padding: EdgeInsets.only(left: 8),
+                              child: Text(
+                                'Seller: $sellerName',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                }),
                 Divider(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -704,7 +802,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ),
                     Text(
-                      '\$${cartProvider.total.toStringAsFixed(2)}',
+                      '\$${totalAmount.toStringAsFixed(2)}',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

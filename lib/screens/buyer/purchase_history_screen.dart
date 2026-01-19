@@ -121,25 +121,13 @@ class PurchaseHistoryScreen extends StatelessWidget {
                   SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: () async {
-                      // Debug button - check all orders in Firestore
-                      print('🔍 DEBUG: Checking all orders in Firestore...');
+                      print('🔍 DEBUG: Running comprehensive debug checks...');
                       try {
-                        final allOrders =
-                            await FirebaseService.getFirebaseInstance()
-                                .collection('orders')
-                                .get();
-                        print(
-                            '📦 Total orders in Firestore: ${allOrders.docs.length}');
-                        for (var doc in allOrders.docs) {
-                          final data = doc.data();
-                          print('   Order ID: ${data['id']}');
-                          print('   Buyer ID: ${data['buyerId']}');
-                          print('   Status: ${data['status']}');
-                          print('   Created: ${data['createdAt']}');
-                          print('   ---');
-                        }
+                        // Use the new debug functions
+                        await FirebaseService.debugPrintAllOrders(
+                            user?.id ?? '');
                       } catch (e) {
-                        print('❌ Error checking orders: $e');
+                        print('❌ Error in debug: $e');
                       }
                     },
                     child: Text('🔍 Debug: Check Firebase'),

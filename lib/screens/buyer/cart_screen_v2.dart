@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/cart_provider.dart';
+import './checkout_screen.dart';
 
 class CartScreenV2 extends StatelessWidget {
   const CartScreenV2({super.key});
@@ -240,16 +241,23 @@ class CartScreenV2 extends StatelessWidget {
                                 padding: EdgeInsets.symmetric(vertical: 14),
                               ),
                               onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Order placed successfully!'),
-                                    backgroundColor: Colors.green.shade700,
-                                    duration: Duration(seconds: 2),
+                                print('🛒 CHECKOUT BUTTON PRESSED');
+                                print(
+                                    '🛒 Cart items count: ${cartProvider.cartItems.length}');
+                                for (var i = 0;
+                                    i < cartProvider.cartItems.length;
+                                    i++) {
+                                  print(
+                                      '   Item $i: ${cartProvider.cartItems[i].name}');
+                                }
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CheckoutScreen(),
                                   ),
                                 );
-                                cartProvider.clear();
                               },
-                              child: Text('Checkout',
+                              child: Text('Proceed to Checkout',
                                   style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold)),

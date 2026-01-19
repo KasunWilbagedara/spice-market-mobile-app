@@ -182,7 +182,7 @@ class _ReviewsWidgetState extends State<ReviewsWidget> {
                     ),
                     SizedBox(height: 12),
                     Text(
-                      review['comment'] ?? '',
+                      review['comment'] ?? review['text'] ?? '',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.grey.shade800,

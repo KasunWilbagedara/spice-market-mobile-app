@@ -23,6 +23,7 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
   late AnimationController _animationController;
   int _quantity = 1;
   String _sellerName = 'Loading...';
+  late dynamic _currentSpice;
 
   @override
   void initState() {
@@ -31,25 +32,57 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
       duration: Duration(milliseconds: 500),
       vsync: this,
     );
+    _currentSpice = widget.spice;
     _loadSellerName();
   }
 
   Future<void> _loadSellerName() async {
     try {
+      print('🔍 Loading seller name for sellerId: "${widget.spice.sellerId}"');
+      if (widget.spice.sellerId.isEmpty) {
+        print('⚠️ Spice has no sellerId');
+        setState(() {
+          _sellerName = 'Unknown Seller';
+        });
+        return;
+      }
+
       final sellerDoc =
           await FirebaseService().getSellerName(widget.spice.sellerId);
+      print('✅ Seller name loaded: $sellerDoc');
       if (mounted) {
         setState(() {
           _sellerName = sellerDoc;
         });
       }
     } catch (e) {
-      print('Error loading seller name: $e');
+      print('❌ Error loading seller name: $e');
       if (mounted) {
         setState(() {
           _sellerName = 'Unknown Seller';
         });
       }
+    }
+  }
+
+  Future<void> _refreshSpiceData() async {
+    try {
+      print('🔄 Refreshing spice data...');
+      final spices = await FirebaseService.getAllSpices().first;
+      final updatedSpice = spices.firstWhere(
+        (s) => s.id == _currentSpice.id,
+        orElse: () => _currentSpice,
+      );
+
+      if (mounted) {
+        setState(() {
+          _currentSpice = updatedSpice;
+        });
+        print(
+            '✅ Spice data refreshed with ${updatedSpice.reviews.length} reviews');
+      }
+    } catch (e) {
+      print('❌ Error refreshing spice data: $e');
     }
   }
 
@@ -75,7 +108,7 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final spice = widget.spice;
+    final spice = _currentSpice;
 
     return Scaffold(
       body: CustomScrollView(
@@ -620,14 +653,45 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
               style: ElevatedButton.styleFrom(
                 backgroundColor: Color(0xFF1B5E4B),
               ),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Thank you for your review!'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-                Navigator.pop(context);
+              onPressed: () async {
+                if (commentController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Please write a review'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+
+                try {
+                  // Save review to Firebase
+                  await FirebaseService.addReview(
+                    spiceId: widget.spice.id,
+                    rating: rating,
+                    reviewText: commentController.text,
+                    spiceName: widget.spice.name,
+                  );
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('✅ Review submitted successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  Navigator.pop(context);
+
+                  // Refresh the spice data to show the new review
+                  await _refreshSpiceData();
+                } catch (e) {
+                  print('❌ Error submitting review: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error submitting review: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               child: Text('Submit', style: TextStyle(color: Colors.white)),
             ),
