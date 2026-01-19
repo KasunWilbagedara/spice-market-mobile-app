@@ -91,22 +91,6 @@ class _BuyerProfileState extends State<BuyerProfile>
                     user?.email ?? '',
                     style: TextStyle(fontSize: 14, color: Colors.white70),
                   ),
-                  SizedBox(height: 16),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Buyer Account',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -135,7 +119,7 @@ class _BuyerProfileState extends State<BuyerProfile>
 
             // Tab Content
             Container(
-              height: 400,
+              height: MediaQuery.of(context).size.height * 0.5,
               child: TabBarView(
                 controller: _tabController,
                 children: [
@@ -146,10 +130,10 @@ class _BuyerProfileState extends State<BuyerProfile>
                       child: Column(
                         children: [
                           Card(
-                            elevation: 3,
+                            elevation: 2,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(15)),
-                            shadowColor: Color(0xFF1B5E4B).withOpacity(0.2),
+                            shadowColor: Color(0xFF1B5E4B).withOpacity(0.15),
                             child: Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(15),
@@ -187,87 +171,6 @@ class _BuyerProfileState extends State<BuyerProfile>
                               ),
                             ),
                           ),
-                          SizedBox(height: 20),
-                          Card(
-                            elevation: 3,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15)),
-                            shadowColor: Colors.red.withOpacity(0.2),
-                            child: Padding(
-                              padding: EdgeInsets.all(20),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Danger Zone',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.red,
-                                    ),
-                                  ),
-                                  SizedBox(height: 16),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton.icon(
-                                      icon: Icon(Icons.logout),
-                                      label: Text('Logout'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red.shade600,
-                                        foregroundColor: Colors.white,
-                                        padding:
-                                            EdgeInsets.symmetric(vertical: 14),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12)),
-                                        elevation: 4,
-                                      ),
-                                      onPressed: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (context) => AlertDialog(
-                                            title: Text('Logout',
-                                                style: TextStyle(
-                                                    color: Color(0xFF1B5E4B),
-                                                    fontWeight:
-                                                        FontWeight.bold)),
-                                            content: Text(
-                                                'Are you sure you want to logout?',
-                                                style: TextStyle(
-                                                    color:
-                                                        Colors.grey.shade700)),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () =>
-                                                    Navigator.pop(context),
-                                                child: Text('Cancel',
-                                                    style: TextStyle(
-                                                        color:
-                                                            Color(0xFF1B5E4B))),
-                                              ),
-                                              TextButton(
-                                                onPressed: () {
-                                                  auth.logout();
-                                                  Navigator
-                                                      .pushReplacementNamed(
-                                                          context, '/welcome');
-                                                },
-                                                child: Text('Logout',
-                                                    style: TextStyle(
-                                                        color: Colors.red,
-                                                        fontWeight:
-                                                            FontWeight.bold)),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -280,7 +183,7 @@ class _BuyerProfileState extends State<BuyerProfile>
                       child: Column(
                         children: [
                           Card(
-                            elevation: 3,
+                            elevation: 2,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(15)),
                             child: Padding(
@@ -387,6 +290,65 @@ class _BuyerProfileState extends State<BuyerProfile>
                                           content: Text(
                                               'Notifications settings coming soon!'),
                                           backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  Divider(),
+                                  ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: Icon(Icons.logout,
+                                        color: Color(0xFF1B5E4B)),
+                                    title: Text(
+                                      'Logout',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Sign out from your account',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    trailing: Icon(Icons.arrow_forward,
+                                        color: Color(0xFF1B5E4B)),
+                                    onTap: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: Text('Logout',
+                                              style: TextStyle(
+                                                  color: Color(0xFF1B5E4B),
+                                                  fontWeight: FontWeight.bold)),
+                                          content: Text(
+                                              'Are you sure you want to logout?',
+                                              style: TextStyle(
+                                                  color: Colors.grey.shade700)),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: Text('Cancel',
+                                                  style: TextStyle(
+                                                      color:
+                                                          Color(0xFF1B5E4B))),
+                                            ),
+                                            TextButton(
+                                              onPressed: () {
+                                                auth.logout();
+                                                Navigator.pushReplacementNamed(
+                                                    context, '/welcome');
+                                              },
+                                              child: Text('Logout',
+                                                  style: TextStyle(
+                                                      color: Color(0xFF1B5E4B),
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                            ),
+                                          ],
                                         ),
                                       );
                                     },

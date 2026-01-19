@@ -37,7 +37,7 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen>
   Future<void> _loadSellerName() async {
     try {
       final sellerDoc =
-          await FirebaseService.getSellerName(widget.spice.sellerId);
+          await FirebaseService().getSellerName(widget.spice.sellerId);
       if (mounted) {
         setState(() {
           _sellerName = sellerDoc;

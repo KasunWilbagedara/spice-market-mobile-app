@@ -37,7 +37,10 @@ class AuthProvider with ChangeNotifier {
       print('⚠️ Auth restoration failed: $e');
     }
     _isInitialized = true;
-    notifyListeners();
+    // Defer notification to avoid calling it during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
   }
 
   Future<bool> login(String email, String password) async {
