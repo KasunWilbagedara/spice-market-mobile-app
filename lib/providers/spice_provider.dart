@@ -54,12 +54,64 @@ class SpiceProvider with ChangeNotifier {
   Future<void> removeSpice(String id) async {
     try {
       print('🗑️ Removing spice: $id');
-      // Remove from Firestore
+      // Remove from local list immediately for UI feedback
       _spices.removeWhere((s) => s.id == id);
       notifyListeners();
-      print('✅ Spice removed');
+      // Remove from Firestore
+      await FirebaseService.deleteSpice(id);
+      print('✅ Spice removed from Firebase');
     } catch (e) {
       print('❌ Error removing spice: $e');
+      // Reload spices to restore from Firebase if deletion failed
+      loadSpices();
+      rethrow;
+    }
+  }
+
+  Future<Spice> updateSpice({
+    required String id,
+    double? price,
+    String? description,
+    String? name,
+    String? category,
+    String? imageUrl,
+  }) async {
+    try {
+      print('✏️ Updating spice: $id');
+
+      // Find the spice
+      final index = _spices.indexWhere((s) => s.id == id);
+      if (index == -1) {
+        throw Exception('Spice not found');
+      }
+
+      final oldSpice = _spices[index];
+      final updatedSpice = oldSpice.copyWith(
+        price: price,
+        description: description,
+        name: name,
+        category: category,
+        imageUrl: imageUrl,
+      );
+
+      // Update in Firebase
+      await FirebaseService.updateSpice(id, {
+        if (price != null) 'price': price,
+        if (description != null) 'description': description,
+        if (name != null) 'name': name,
+        if (category != null) 'category': category,
+        if (imageUrl != null) 'imageUrl': imageUrl,
+      });
+
+      // Update locally
+      _spices[index] = updatedSpice;
+      notifyListeners();
+      print('✅ Spice updated: ${updatedSpice.name}');
+
+      return updatedSpice;
+    } catch (e) {
+      print('❌ Error updating spice: $e');
+      rethrow;
     }
   }
 

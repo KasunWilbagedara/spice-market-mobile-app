@@ -96,6 +96,33 @@ class Spice {
     );
   }
 
+  // Copy constructor for creating an updated spice
+  Spice copyWith({
+    String? id,
+    String? name,
+    double? price,
+    String? sellerId,
+    String? description,
+    String? category,
+    String? imageUrl,
+    List<Map<String, dynamic>>? reviews,
+    List<Map<String, dynamic>>? comments,
+    double? averageRating,
+  }) {
+    return Spice(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      price: price ?? this.price,
+      sellerId: sellerId ?? this.sellerId,
+      description: description ?? this.description,
+      category: category ?? this.category,
+      imageUrl: imageUrl ?? this.imageUrl,
+      reviews: reviews ?? this.reviews,
+      comments: comments ?? this.comments,
+      averageRating: averageRating ?? this.averageRating,
+    );
+  }
+
   Map<String, dynamic> toMap() => {
         'id': id,
         'name': name,

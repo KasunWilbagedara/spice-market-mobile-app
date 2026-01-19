@@ -104,4 +104,38 @@ class SpiceService {
   Future<void> removeSpice(String id) async {
     _spices.removeWhere((s) => s.id == id);
   }
+
+  Future<Spice> updateSpice({
+    required String id,
+    double? price,
+    String? description,
+    String? name,
+    String? category,
+    String? imageUrl,
+  }) async {
+    final index = _spices.indexWhere((s) => s.id == id);
+    if (index == -1) {
+      throw Exception('Spice not found');
+    }
+
+    final oldSpice = _spices[index];
+    final updatedSpice = oldSpice.copyWith(
+      price: price,
+      description: description,
+      name: name,
+      category: category,
+      imageUrl: imageUrl,
+    );
+
+    _spices[index] = updatedSpice;
+    return updatedSpice;
+  }
+
+  Spice? getSpiceById(String id) {
+    try {
+      return _spices.firstWhere((s) => s.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
 }

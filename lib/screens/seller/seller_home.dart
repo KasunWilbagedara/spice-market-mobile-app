@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/spice_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/image_helper.dart';
 import 'add_spice_screen.dart';
+import 'edit_spice_screen.dart';
 import 'edit_profile_screen.dart';
 import 'seller_messages_screen.dart';
 
@@ -337,22 +339,36 @@ class _SellerHomeState extends State<SellerHome> {
                                       : Colors.orange.shade200,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: spice.imageUrl != null &&
-                                        spice.imageUrl!.startsWith('/')
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Image.file(
-                                          spice.imageUrl! as dynamic,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      )
-                                    : Icon(
-                                        Icons.local_fire_department,
-                                        color: isMySpice
-                                            ? Colors.green.shade700
-                                            : Colors.orange.shade700,
-                                        size: 30,
-                                      ),
+                                child: Builder(
+                                  builder: (context) {
+                                    final hasImage = spice.imageUrl != null &&
+                                        spice.imageUrl!.isNotEmpty &&
+                                        (spice.imageUrl!.startsWith('/') ||
+                                            spice.imageUrl!.startsWith('http'));
+
+                                    print(
+                                        '🖼️ ${spice.name}: hasImage=$hasImage, url=${spice.imageUrl ?? "NULL"}');
+
+                                    return hasImage
+                                        ? ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: safeImageFile(
+                                              spice.imageUrl!,
+                                              width: 60,
+                                              height: 60,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.local_fire_department,
+                                            color: isMySpice
+                                                ? Colors.green.shade700
+                                                : Colors.orange.shade700,
+                                            size: 30,
+                                          );
+                                  },
+                                ),
                               ),
                               title: Text(
                                 spice.name,
@@ -374,9 +390,20 @@ class _SellerHomeState extends State<SellerHome> {
                                   Text(
                                       'Price: \$${spice.price.toStringAsFixed(2)}',
                                       style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green.shade700)),
+                                          color: Colors.grey.shade600,
+                                          fontSize: 12)),
+                                  // DEBUG: Show imageUrl status
+                                  SizedBox(height: 4),
+                                  Text(
+                                    spice.imageUrl != null && spice.imageUrl!.isNotEmpty
+                                        ? 'Image: ✓ (${spice.imageUrl!.length} chars)'
+                                        : 'Image: ✗ NONE',
+                                    style: TextStyle(
+                                        color: (spice.imageUrl != null && spice.imageUrl!.isNotEmpty)
+                                            ? Colors.blue.shade600
+                                            : Colors.red.shade600,
+                                        fontSize: 10),
+                                  ),
                                   if (!isMySpice)
                                     Padding(
                                       padding: EdgeInsets.only(top: 4),
@@ -407,44 +434,74 @@ class _SellerHomeState extends State<SellerHome> {
                                 ],
                               ),
                               trailing: isMySpice
-                                  ? IconButton(
-                                      icon: Icon(Icons.delete_outline,
-                                          color: Colors.red.shade700, size: 24),
-                                      onPressed: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (context) => AlertDialog(
-                                            title: Text('Delete Spice?'),
-                                            content: Text(
-                                                'Are you sure you want to delete ${spice.name}?'),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () =>
-                                                    Navigator.pop(context),
-                                                child: Text('Cancel'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () {
-                                                  spiceProvider
-                                                      .removeSpice(spice.id);
-                                                  Navigator.pop(context);
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                        content: Text(
-                                                            'Spice deleted'),
-                                                        backgroundColor:
-                                                            Colors.red),
-                                                  );
-                                                },
-                                                child: Text('Delete',
-                                                    style: TextStyle(
-                                                        color: Colors.red)),
-                                              ),
-                                            ],
+                                  ? SizedBox(
+                                      width: 100,
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(Icons.edit_outlined,
+                                                color: Colors.blue.shade700,
+                                                size: 20),
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      EditSpiceScreen(
+                                                          spice: spice),
+                                                ),
+                                              );
+                                            },
                                           ),
-                                        );
-                                      },
+                                          IconButton(
+                                            icon: Icon(Icons.delete_outline,
+                                                color: Colors.red.shade700,
+                                                size: 20),
+                                            onPressed: () {
+                                              showDialog(
+                                                context: context,
+                                                builder: (context) =>
+                                                    AlertDialog(
+                                                  title: Text('Delete Spice?'),
+                                                  content: Text(
+                                                      'Are you sure you want to delete ${spice.name}?'),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context),
+                                                      child: Text('Cancel'),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () {
+                                                        spiceProvider
+                                                            .removeSpice(
+                                                                spice.id);
+                                                        Navigator.pop(context);
+                                                        ScaffoldMessenger.of(
+                                                                context)
+                                                            .showSnackBar(
+                                                          SnackBar(
+                                                              content: Text(
+                                                                  'Spice deleted'),
+                                                              backgroundColor:
+                                                                  Colors.red),
+                                                        );
+                                                      },
+                                                      child: Text('Delete',
+                                                          style: TextStyle(
+                                                              color:
+                                                                  Colors.red)),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
                                     )
                                   : null,
                             ),

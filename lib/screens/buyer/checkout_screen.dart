@@ -201,41 +201,61 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final cartProvider = Provider.of<CartProvider>(context, listen: false);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
+      print('🛒 Cart provider total: ${cartProvider.total}');
+      print('🛒 Cart items count: ${cartProvider.cartItems.length}');
+
+      if (cartProvider.cartItems.isEmpty) {
+        print('❌ Cart is empty!');
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cart is empty!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       // Simulate payment processing
       await Future.delayed(Duration(seconds: 2));
 
       // Create order
+      final orderItems = cartProvider.cartItems
+          .map((item) => {
+                'spiceId': item.id,
+                'name': item.name,
+                'price': item.price,
+                'quantity': 1,
+                'sellerId': item.sellerId,
+              })
+          .toList();
+
+      print('🛒 Cart items for order:');
+      for (var item in orderItems) {
+        print('   - ${item['name']} (Seller: ${item['sellerId']})');
+      }
+
       final order = Order(
         id: uuid.v4(),
         buyerId: authProvider.user?.id ?? 'guest_buyer',
-        items: cartProvider.cartItems
-            .map((item) => {
-                  'spiceId': item.id,
-                  'spiceName': item.name,
-                  'price': item.price,
-                  'quantity': 1,
-                })
-            .toList(),
+        items: orderItems,
         totalAmount: cartProvider.total,
         billingDetails: billingDetails,
         orderDate: DateTime.now(),
-        status: 'completed',
+        status: 'pending',
       );
+
+      print('👤 Auth user ID: "${authProvider.user?.id}"');
+      print('🛒 Order buyerId: "${order.buyerId}"');
+      print('🛒 Order buyerId length: ${order.buyerId.length}');
+      print('🛒 Order buyerId is empty: ${order.buyerId.isEmpty}');
 
       // Save order to Firebase
       print('📝 Creating order: ${order.id}');
-      await FirebaseService.createOrder(order);
-      print('✅ Order saved to Firebase successfully!');
-
-      // Create notification for seller
-      print('🔔 Creating seller notification...');
-      await FirebaseService.createNotification(
-        'seller_id', // You'll get actual seller ID from cart items
-        'New Order Received!',
-        'You have a new order for \$${order.totalAmount.toStringAsFixed(2)}',
-        'order_received',
-      );
-      print('✅ Notification sent!');
+      print('📝 About to call FirebaseService.createOrder...');
+      final orderId = await FirebaseService.createOrder(order);
+      print('✅ Order saved to Firebase successfully! Order ID: $orderId');
+      print('🔔 Seller notifications created automatically during order creation');
 
       // Clear cart after successful order
       cartProvider.clear();
@@ -283,6 +303,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } catch (e) {
       setState(() => _isProcessing = false);
       print('❌ Payment Error: $e');
+      print('❌ Error type: ${e.runtimeType}');
+      print('❌ Error stacktrace: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
@@ -391,6 +413,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     _currentStep == 2 ? 'Place Order' : 'Continue',
                     style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
+                ),
+              ),
+              SizedBox(width: 12),
+              // Debug test button
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                ),
+                onPressed: _testFirebaseOrder,
+                child: Text(
+                  '🧪 Test',
+                  style: TextStyle(color: Colors.white, fontSize: 12),
                 ),
               ),
             ],
@@ -712,5 +747,65 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
       ],
     );
+  }
+
+  // Debug: Test Firebase connection
+  Future<void> _testFirebaseOrder() async {
+    print('🧪 TESTING FIREBASE ORDER CREATION...');
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final testOrder = Order(
+        id: 'TEST_ORDER_${DateTime.now().millisecondsSinceEpoch}',
+        buyerId: authProvider.user?.id ?? 'TEST_BUYER',
+        items: [
+          {
+            'spiceId': 'test_spice',
+            'name': 'Test Spice',
+            'price': 10.0,
+            'quantity': 1,
+            'sellerId': 'test_seller',
+          }
+        ],
+        totalAmount: 10.0,
+        billingDetails: BillingDetails(
+          fullName: 'Test Buyer',
+          email: 'test@example.com',
+          phoneNumber: '1234567890',
+          address: 'Test Address',
+          city: 'Test City',
+          state: 'Test State',
+          zipCode: '12345',
+          bankAccountName: 'Test Bank',
+          bankAccountNumber: '123456789',
+          bankName: 'Test Bank Name',
+          ifscCode: 'TESTIFSC',
+        ),
+        orderDate: DateTime.now(),
+        status: 'pending',
+      );
+
+      print('🧪 Test Order ID: ${testOrder.id}');
+      print('🧪 Test Buyer ID: ${testOrder.buyerId}');
+
+      await FirebaseService.createOrder(testOrder);
+      print('🧪 ✅ TEST ORDER CREATED SUCCESSFULLY!');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Test order created successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      print('🧪 ❌ TEST ORDER FAILED: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Test order failed: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
+    }
   }
 }

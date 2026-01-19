@@ -16,6 +16,8 @@ class _SellerMessagesScreenState extends State<SellerMessagesScreen> {
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
     final sellerId = auth.user?.id ?? '';
+    print(
+        '👤 Seller Messages Screen - Seller ID: $sellerId, Name: ${auth.user?.name}');
 
     if (sellerId.isEmpty) {
       return Scaffold(
@@ -196,7 +198,7 @@ class _SellerMessagesScreenState extends State<SellerMessagesScreen> {
                       builder: (context) => SellerConversationScreen(
                         buyerId: buyerId,
                         buyerName: lastMessage.senderName,
-                        sellerId: lastMessage.recipientId,
+                        sellerId: sellerId,
                       ),
                     ),
                   );
@@ -210,10 +212,14 @@ class _SellerMessagesScreenState extends State<SellerMessagesScreen> {
   }
 
   Widget _buildOrdersTab(String sellerId) {
-    return StreamBuilder<List<dynamic>>(
-      stream: FirebaseService.getSellerOrders(sellerId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+    print('🔍 _buildOrdersTab called with sellerId: $sellerId');
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: FirebaseService.getNotifications(sellerId),
+      builder: (context, notificationSnapshot) {
+        print(
+            '🔄 StreamBuilder state: ${notificationSnapshot.connectionState}, hasData: ${notificationSnapshot.hasData}, data length: ${notificationSnapshot.data?.length ?? 0}');
+
+        if (notificationSnapshot.connectionState == ConnectionState.waiting) {
           return Center(
             child: CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation(Colors.orange.shade700),
@@ -221,7 +227,19 @@ class _SellerMessagesScreenState extends State<SellerMessagesScreen> {
           );
         }
 
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+        final notifications = notificationSnapshot.data ?? [];
+        print('📋 All notifications: ${notifications.length}');
+        for (var i = 0; i < notifications.length; i++) {
+          print(
+              '   Notification $i: type=${notifications[i]['type']}, userId stored=${notifications[i].keys}');
+        }
+
+        final orderNotifications =
+            notifications.where((n) => n['type'] == 'order_received').toList();
+        print(
+            '📦 Order notifications (filtered): ${orderNotifications.length}');
+
+        if (orderNotifications.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -233,23 +251,51 @@ class _SellerMessagesScreenState extends State<SellerMessagesScreen> {
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'No orders yet',
+                  'No order notifications yet',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey.shade700,
                   ),
+                ),
+                SizedBox(height: 20),
+                Text(
+                  'Your Seller ID: $sellerId',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    print(
+                        '🧪 Creating test notification for seller: $sellerId');
+                    FirebaseService.createNotification(
+                      sellerId,
+                      '🧪 Test Order Notification',
+                      'This is a test notification to verify the notification system is working.',
+                      'order_received',
+                    );
+                  },
+                  child: Text('Create Test Notification'),
                 ),
               ],
             ),
           );
         }
 
-        final orders = snapshot.data!;
         return ListView.builder(
           padding: EdgeInsets.all(12),
-          itemCount: orders.length,
+          itemCount: orderNotifications.length,
           itemBuilder: (context, index) {
-            final order = orders[index];
+            final notification = orderNotifications[index];
+            final isRead = notification['read'] ?? false;
+            final orderAmount = notification['orderAmount'] ?? 0.0;
+            final itemCount = notification['itemCount'] ?? 0;
+            final buyerName = notification['buyerName'] ?? 'Unknown';
+            final orderId = notification['orderId'] ?? 'N/A';
+
             return Card(
               margin: EdgeInsets.only(bottom: 12),
               elevation: 2,
@@ -258,39 +304,72 @@ class _SellerMessagesScreenState extends State<SellerMessagesScreen> {
               ),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Colors.green.shade700,
-                  child: Icon(Icons.check_circle, color: Colors.white),
+                  backgroundColor: Colors.blue.shade700,
+                  child: Icon(Icons.shopping_bag, color: Colors.white),
                 ),
                 title: Text(
-                  'Order #${order.id.substring(0, 8)}',
+                  'Order from $buyerName',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
                 ),
                 subtitle: Text(
-                  '\$${order.totalAmount.toStringAsFixed(2)} • ${order.items.length} items',
+                  '₹${orderAmount.toStringAsFixed(2)} • $itemCount items',
                   style: TextStyle(color: Colors.grey.shade700),
                 ),
                 trailing: Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: order.status == 'completed'
-                        ? Colors.green.shade100
-                        : Colors.orange.shade100,
+                    color:
+                        isRead ? Colors.grey.shade100 : Colors.orange.shade100,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    order.status.toUpperCase(),
+                    isRead ? 'READ' : 'NEW',
                     style: TextStyle(
-                      color: order.status == 'completed'
-                          ? Colors.green.shade700
+                      color: isRead
+                          ? Colors.grey.shade700
                           : Colors.orange.shade700,
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),
                   ),
                 ),
+                onTap: () {
+                  // Mark as read
+                  if (!isRead) {
+                    FirebaseService()
+                        .markNotificationAsRead(notification['id'] ?? '');
+                  }
+                  // Show order details
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text('Order Details'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Buyer: $buyerName'),
+                          Text('Email: ${notification['buyerEmail'] ?? 'N/A'}'),
+                          Text('Phone: ${notification['buyerPhone'] ?? 'N/A'}'),
+                          SizedBox(height: 10),
+                          Text('Amount: ₹${orderAmount.toStringAsFixed(2)}'),
+                          Text('Items: $itemCount'),
+                          SizedBox(height: 10),
+                          Text('Order ID: ${orderId.substring(0, 8)}...'),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text('Close'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             );
           },
@@ -377,6 +456,12 @@ class _SellerConversationScreenState extends State<SellerConversationScreen> {
               stream: FirebaseService.getConversation(
                   widget.buyerId, widget.sellerId),
               builder: (context, snapshot) {
+                print(
+                    '🔍 Conversation Stream - Buyer: ${widget.buyerId}, Seller: ${widget.sellerId}');
+                print('🔍 Connection State: ${snapshot.connectionState}');
+                print(
+                    '🔍 Has Data: ${snapshot.hasData}, Data Length: ${snapshot.data?.length ?? 0}');
+
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Center(
                     child: CircularProgressIndicator(
@@ -386,13 +471,25 @@ class _SellerConversationScreenState extends State<SellerConversationScreen> {
                   );
                 }
 
-                if (!snapshot.hasData) {
+                if (snapshot.hasError) {
+                  print('❌ Error: ${snapshot.error}');
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  print('⚠️ No messages found');
                   return Center(
                     child: Text('No messages'),
                   );
                 }
 
                 final messages = snapshot.data!;
+                print('✅ Loaded ${messages.length} messages');
+                for (var msg in messages) {
+                  print('   - From: ${msg.senderId} -> To: ${msg.recipientId}');
+                }
 
                 Future.delayed(Duration(milliseconds: 100), () {
                   if (_scrollController.hasClients) {

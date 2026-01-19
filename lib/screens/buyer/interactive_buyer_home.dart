@@ -7,6 +7,7 @@ import '../../widgets/logo_widget.dart';
 import '../buyer/spice_detail_screen.dart';
 import '../buyer/cart_screen_v2.dart';
 import '../buyer/buyer_profile.dart';
+import '../buyer/purchase_history_screen.dart';
 
 class InteractiveBuyerHome extends StatefulWidget {
   const InteractiveBuyerHome({super.key});
@@ -33,6 +34,7 @@ class _InteractiveBuyerHomeState extends State<InteractiveBuyerHome> {
         children: const [
           HomeScreen(),
           CartScreenV2(),
+          PurchaseHistoryScreen(),
           BuyerProfile(),
         ],
       ),
@@ -45,6 +47,7 @@ class _InteractiveBuyerHomeState extends State<InteractiveBuyerHome> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
               icon: Icon(Icons.shopping_cart), label: 'Cart'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
@@ -272,13 +275,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Text(
                                 cat['name'],
                                 style: TextStyle(
-                                  fontSize: selected ? 13 : 12,
+                                  fontSize: selected ? 15 : 14,
                                   fontWeight: selected
                                       ? FontWeight.bold
                                       : FontWeight.w600,
-                                  color: selected
-                                      ? Color(0xFF1B5E4B)
-                                      : Color(0xFF1B5E4B),
+                                  color: Colors.white,
                                 ),
                               ),
                             ),

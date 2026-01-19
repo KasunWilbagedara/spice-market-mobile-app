@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'dart:typed_data';
+import 'dart:async';
 import '../../providers/spice_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/spice.dart';
 import '../../services/firebase_service.dart';
+import '../../utils/image_helper.dart';
 
 class AddSpiceScreen extends StatefulWidget {
   const AddSpiceScreen({super.key});
@@ -21,7 +23,8 @@ class _AddSpiceScreenState extends State<AddSpiceScreen> {
   final TextEditingController priceController = TextEditingController();
   String _selectedCategory = 'Spicy';
   bool _isLoading = false;
-  File? _selectedImage;
+  XFile? _selectedImage;
+  Uint8List? _selectedImageBytes; // Store image bytes for Web preview
   final ImagePicker _imagePicker = ImagePicker();
 
   final List<String> categories = ['Spicy', 'Mild', 'Sweet', 'Exotic'];
@@ -39,7 +42,13 @@ class _AddSpiceScreenState extends State<AddSpiceScreen> {
       final XFile? image =
           await _imagePicker.pickImage(source: ImageSource.gallery);
       if (image != null) {
-        setState(() => _selectedImage = File(image.path));
+        // Read bytes for preview
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _selectedImage = image;
+          _selectedImageBytes = bytes;
+        });
+        print('✅ Image selected: ${image.path}');
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -74,19 +83,102 @@ class _AddSpiceScreenState extends State<AddSpiceScreen> {
         try {
           print('📤 Uploading image for new spice...');
           final spiceId = Uuid().v4();
-          imageUrl =
-              await FirebaseService.uploadSpiceImage(_selectedImage!, spiceId);
-          print('✅ Image uploaded: $imageUrl');
+
+          // Show loading dialog with upload status
+          if (mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: const Text('Uploading Image'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text('Uploading... (this may take a moment)',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // Upload with a timeout - if it takes longer than 30 seconds, continue without image
+          try {
+            print('📤 Starting image upload for spice: $spiceId');
+            print('📥 XFile path: ${_selectedImage!.path}');
+            print('📥 XFile name: ${_selectedImage!.name}');
+
+            imageUrl = await FirebaseService.uploadSpiceImageFromXFile(
+                    _selectedImage, spiceId)
+                .timeout(
+              const Duration(seconds: 60),
+              onTimeout: () {
+                print('⚠️ Image upload timeout after 60s');
+                throw TimeoutException('Image upload took too long');
+              },
+            );
+
+            print('📋 Upload returned: "$imageUrl"');
+            print('📋 URL type: ${imageUrl.runtimeType}');
+            print('📋 URL length: ${imageUrl.length}');
+
+            if (imageUrl.isEmpty) {
+              imageUrl = null;
+              print('⚠️ Upload returned empty - set to null');
+            } else if (imageUrl.startsWith('http')) {
+              print('✅ Valid Firebase Storage URL received');
+            } else {
+              print('⚠️ URL does not start with http: $imageUrl');
+            }
+          } catch (uploadError) {
+            print('❌ Upload exception caught: $uploadError');
+            print('❌ Exception type: ${uploadError.runtimeType}');
+            imageUrl = null;
+
+            // Show error to user
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Image upload error: $uploadError'),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 5),
+                ),
+              );
+            }
+          }
+
+          // Close the upload dialog
+          if (mounted && Navigator.canPop(context)) {
+            try {
+              Navigator.pop(context);
+            } catch (e) {
+              print('Error closing dialog: $e');
+            }
+          }
         } catch (e) {
-          print('❌ Image upload failed: $e');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Image upload failed: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          setState(() => _isLoading = false);
-          return;
+          print('❌ Image upload error: $e');
+
+          // Close the upload dialog
+          if (mounted && Navigator.canPop(context)) {
+            try {
+              Navigator.pop(context);
+            } catch (navError) {
+              print('Error closing dialog: $navError');
+            }
+          }
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Image upload skipped: $e'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          // Continue without image instead of failing completely
         }
       }
 
@@ -99,6 +191,41 @@ class _AddSpiceScreenState extends State<AddSpiceScreen> {
         category: _selectedCategory,
         imageUrl: imageUrl,
       );
+
+      print('📦 Creating spice object:');
+      print('  Name: ${spice.name}');
+      print('  Price: ${spice.price}');
+      print('  ImageURL: ${spice.imageUrl ?? "NULL"}');
+      print('  ImageURL is null: ${spice.imageUrl == null}');
+      print('  ImageURL is empty: ${spice.imageUrl?.isEmpty ?? "N/A"}');
+      print('  Category: ${spice.category}');
+      print('  SellerId: ${spice.sellerId}');
+
+      // Show user what we're about to save
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              spice.imageUrl != null && spice.imageUrl!.isNotEmpty
+                  ? 'Saving spice with image...'
+                  : 'Saving spice without image (no URL available)',
+            ),
+            duration: Duration(seconds: 2),
+            backgroundColor:
+                spice.imageUrl != null && spice.imageUrl!.isNotEmpty
+                    ? Colors.blue
+                    : Colors.orange,
+          ),
+        );
+      }
+
+      // Verify image URL is accessible if present
+      if (spice.imageUrl != null && spice.imageUrl!.isNotEmpty) {
+        print('🔗 Image URL length: ${spice.imageUrl!.length}');
+        if (!spice.imageUrl!.startsWith('http')) {
+          print('⚠️ Warning: Image URL does not start with http!');
+        }
+      }
 
       await spiceProvider.addSpice(spice);
 
@@ -179,17 +306,28 @@ class _AddSpiceScreenState extends State<AddSpiceScreen> {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(10),
-                              child: Image.file(_selectedImage!,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: 180),
+                              child: _selectedImageBytes != null
+                                  ? Image.memory(
+                                      _selectedImageBytes!,
+                                      width: double.infinity,
+                                      height: 180,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : safeImageFile(
+                                      _selectedImage!.path,
+                                      width: double.infinity,
+                                      height: 180,
+                                      fit: BoxFit.cover,
+                                    ),
                             ),
                             Positioned(
                               top: 8,
                               right: 8,
                               child: GestureDetector(
-                                onTap: () =>
-                                    setState(() => _selectedImage = null),
+                                onTap: () => setState(() {
+                                  _selectedImage = null;
+                                  _selectedImageBytes = null;
+                                }),
                                 child: Container(
                                   decoration: BoxDecoration(
                                       color: Colors.red.shade700,
