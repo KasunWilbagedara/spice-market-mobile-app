@@ -44,54 +44,55 @@ class _BuyerProfileState extends State<BuyerProfile>
           children: [
             // Profile Header
             Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF1B5E4B), Color(0xFF2D8659)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+              padding: EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+              child: Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
-              ),
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: Column(
-                children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.white, Colors.orange.shade100],
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.blue.shade100, Colors.blue.shade50],
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 12,
+                              spreadRadius: 2,
+                            )
+                          ],
+                        ),
+                        child: Icon(Icons.person,
+                            size: 50, color: Colors.blue.shade700),
                       ),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 15,
-                          spreadRadius: 3,
-                        )
-                      ],
-                    ),
-                    child:
-                        Icon(Icons.person, size: 60, color: Color(0xFF1B5E4B)),
+                      SizedBox(height: 16),
+                      Text(
+                        user?.name ?? 'Guest',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1B5E4B),
+                        ),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        user?.email ?? '',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 20),
-                  Text(
-                    user?.name ?? 'Guest',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    user?.email ?? '',
-                    style: TextStyle(fontSize: 14, color: Colors.white70),
-                  ),
-                ],
+                ),
               ),
             ),
 

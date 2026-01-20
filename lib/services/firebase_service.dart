@@ -1,7 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io' as io;
 import 'dart:typed_data' as typed_data;
+import 'dart:convert' show base64Encode;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../models/order.dart' as order_models;
 import '../models/spice.dart';
 import '../models/message.dart' as msg;
@@ -38,45 +41,168 @@ class FirebaseService {
 
   // ============== IMAGE STORAGE ==============
 
-  /// Upload spice image to Firebase Storage from XFile (works on Web and native)
+  /// Upload spice image to Firebase Storage from XFile with smart retry
+  /// Falls back to base64 data URL if storage upload fails (web only)
   static Future<String> uploadSpiceImageFromXFile(
       dynamic xFile, String spiceId) async {
     try {
       print('📸 Uploading image for spice: $spiceId');
 
-      // Create unique filename with timestamp
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'spices/$spiceId/$timestamp.jpg';
-
-      // Read file bytes (works on Web and native)
+      // Read file bytes
       print('📥 Reading image bytes...');
       var bytes = await xFile.readAsBytes();
       final sizeKB = bytes.length / 1024;
       print('📥 Image size: ${sizeKB.toStringAsFixed(2)} KB');
+      print('📥 File name: ${xFile.name}');
 
-      // Upload file to Firebase Storage
-      print('📤 Uploading to Firebase...');
-      final ref = _storage.ref(fileName);
+      // On web: immediately use base64 for small images (avoids CORS)
+      if (kIsWeb && sizeKB < 200) {
+        print(
+            '🌐 Web platform detected - using base64 data URL (CORS-safe)...');
+        final dataUrl = _createBase64DataUrl(bytes);
+        print('✅ Image prepared as data URL!');
+        print('🔗 Data URL: ${dataUrl.substring(0, 50)}...');
+        return dataUrl;
+      }
 
-      // putData returns a Future<TaskSnapshot>, not UploadTask
-      // We need to await it directly
-      final snapshot = await ref.putData(
-        bytes,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
+      // On native: try Firebase Storage upload
+      try {
+        final downloadUrl =
+            await _uploadToStorageWithRetry(bytes, spiceId, xFile.name);
+        print('✅ Image uploaded successfully!');
+        print('🔗 Download URL: $downloadUrl');
+        return downloadUrl;
+      } catch (storageError) {
+        print('⚠️ Storage upload failed: $storageError');
 
-      // Get download URL from the snapshot
-      print('🔗 Getting download URL...');
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      print('✅ Image uploaded successfully!');
-      print('🔗 Download URL: $downloadUrl');
+        // Final fallback for small images: use base64 data URL
+        if (sizeKB < 200) {
+          print('🔄 Fallback: using base64 data URL...');
+          return _createBase64DataUrl(bytes);
+        }
 
-      return downloadUrl;
+        throw storageError;
+      }
     } catch (e) {
-      print('❌ Image upload failed: $e');
+      print('❌ Image upload completely failed: $e');
       print('Stack trace: ${e.toString()}');
       throw Exception('Failed to upload image: $e');
     }
+  }
+
+  /// Create a base64 data URL (works on web, good for small images)
+  static String _createBase64DataUrl(typed_data.Uint8List bytes) {
+    final base64String = base64Encode(bytes);
+    final dataUrl = 'data:image/jpeg;base64,$base64String';
+    print(
+        '✅ Created base64 data URL (${(bytes.length / 1024).toStringAsFixed(2)} KB)');
+    return dataUrl;
+  }
+
+  /// Alternative storage upload with different approach
+  static Future<String> _uploadToStorageAlternative(
+    typed_data.Uint8List bytes,
+    String spiceId,
+    String fileName,
+  ) async {
+    try {
+      print('📤 Trying alternative storage upload...');
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final storagePath = 'temp/$spiceId/$timestamp.jpg';
+
+      print('📋 Uploading to: $storagePath');
+      final ref = _storage.ref(storagePath);
+
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        cacheControl: 'public, max-age=31536000',
+      );
+
+      final snapshot = await ref.putData(bytes, metadata).timeout(
+            const Duration(seconds: 45), // Shorter timeout
+          );
+
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      print('✅ Alternative upload succeeded');
+      return downloadUrl;
+    } catch (e) {
+      print('❌ Alternative upload also failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Upload to Firebase Storage with exponential backoff retry
+  static Future<String> _uploadToStorageWithRetry(
+    typed_data.Uint8List bytes,
+    String spiceId,
+    String fileName, {
+    int maxAttempts = 5,
+    int initialDelayMs = 500,
+  }) async {
+    int attempt = 0;
+    Exception? lastError;
+
+    while (attempt < maxAttempts) {
+      try {
+        attempt++;
+        print('📤 Upload attempt $attempt/$maxAttempts...');
+
+        // Create unique filename with timestamp
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final storagePath = 'spices/$spiceId/$timestamp.jpg';
+
+        print('📋 Uploading to: $storagePath');
+        final ref = _storage.ref(storagePath);
+
+        // Set metadata with proper cache headers
+        final metadata = SettableMetadata(
+          contentType: 'image/jpeg',
+          cacheControl: 'public, max-age=31536000', // 1 year
+          customMetadata: {
+            'uploaded-by': 'flutter-app',
+            'timestamp': timestamp.toString(),
+            'original-name': fileName,
+          },
+        );
+
+        // Upload with timeout
+        final snapshot = await ref.putData(bytes, metadata).timeout(
+          const Duration(seconds: 90),
+          onTimeout: () {
+            throw Exception(
+                'Upload timeout after 90 seconds on attempt $attempt');
+          },
+        );
+
+        // Get download URL
+        final downloadUrl = await snapshot.ref.getDownloadURL();
+        print('✅ Upload succeeded on attempt $attempt');
+        print('🔗 URL: $downloadUrl');
+        return downloadUrl;
+      } catch (e) {
+        lastError = Exception('Attempt $attempt failed: $e');
+        print('❌ $lastError');
+
+        // Don't retry on auth errors
+        if (e.toString().contains('permission') ||
+            e.toString().contains('auth') ||
+            e.toString().contains('unauthorized')) {
+          print('⛔ Authentication error - not retrying');
+          rethrow;
+        }
+
+        if (attempt < maxAttempts) {
+          // Exponential backoff: 500ms, 1s, 2s, 4s, 8s
+          final delayMs = initialDelayMs * (1 << (attempt - 1));
+          print(
+              '⏳ Retrying in ${delayMs}ms... (attempt $attempt/$maxAttempts)');
+          await Future.delayed(Duration(milliseconds: delayMs));
+        }
+      }
+    }
+
+    print('❌ Upload failed after $maxAttempts attempts');
+    throw lastError ?? Exception('Upload failed after $maxAttempts attempts');
   }
 
   /// Upload spice image to Firebase Storage from file path
@@ -173,6 +299,18 @@ class FirebaseService {
       print('📷 Image URL is null: ${spice.imageUrl == null}');
       print('📷 Image URL is empty: ${spice.imageUrl?.isEmpty ?? "N/A"}');
 
+      // Get seller name
+      String sellerName = 'Unknown Seller';
+      try {
+        final userDoc =
+            await _firestore.collection('users').doc(spice.sellerId).get();
+        if (userDoc.exists) {
+          sellerName = userDoc.data()?['name'] ?? 'Unknown Seller';
+        }
+      } catch (e) {
+        print('⚠️ Could not fetch seller name: $e');
+      }
+
       final spiceData = {
         'id': spice.id,
         'name': spice.name,
@@ -180,13 +318,21 @@ class FirebaseService {
         'price': spice.price,
         'category': spice.category ?? '',
         'sellerId': spice.sellerId,
-        'imageUrl': spice.imageUrl ?? '',
+        'sellerName': sellerName,
         'averageRating': spice.averageRating,
         'reviews': spice.reviews,
         'comments': spice.comments,
         'createdAt': DateTime.now().toIso8601String(),
         'updatedAt': DateTime.now().toIso8601String(),
       };
+
+      // ✅ FIX 1: Only save imageUrl if valid (NEVER save empty strings)
+      if (spice.imageUrl != null && spice.imageUrl!.trim().isNotEmpty) {
+        spiceData['imageUrl'] = spice.imageUrl!;
+        print('✅ imageUrl saved: ${spice.imageUrl}');
+      } else {
+        print('⚠️ No imageUrl provided, field will not be saved to Firestore');
+      }
 
       print('💾 Firestore data imageUrl field: "${spiceData['imageUrl']}"');
 
@@ -199,6 +345,36 @@ class FirebaseService {
     }
   }
 
+  /// Validate and get image URL with proper Firebase Storage URL format
+  static Future<String?> validateImageUrl(String? imageUrl) async {
+    if (imageUrl == null || imageUrl.trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      // If it's already a download URL, return it
+      if (imageUrl.contains('firebasestorage.googleapis.com')) {
+        print('✅ Image URL valid: ${imageUrl.substring(0, 50)}...');
+        return imageUrl;
+      }
+
+      // If it's a file path, try to get the URL from storage
+      if (imageUrl.startsWith('spices/')) {
+        final ref = _storage.ref(imageUrl);
+        final url = await ref.getDownloadURL();
+        print(
+            '✅ Retrieved image URL from Firebase: ${url.substring(0, 50)}...');
+        return url;
+      }
+
+      // Otherwise assume it's a valid URL
+      return imageUrl;
+    } catch (e) {
+      print('⚠️ Error validating image URL: $e');
+      return null;
+    }
+  }
+
   /// Get all spices (for buyer to browse)
   static Stream<List<Spice>> getAllSpices() {
     return _firestore.collection('spices').snapshots().map((snapshot) {
@@ -207,6 +383,12 @@ class FirebaseService {
         print('📊 Spice data from Firestore:');
         print('  Name: ${data['name']}');
         print('  ImageURL field value: ${data['imageUrl'] ?? "MISSING"}');
+
+        // ✅ FIX 2: Normalize empty strings to null when reading
+        final rawUrl = data['imageUrl'];
+        final imageUrl =
+            (rawUrl is String && rawUrl.trim().isNotEmpty) ? rawUrl : null;
+
         return Spice(
           id: data['id'] ?? '',
           name: data['name'] ?? '',
@@ -214,7 +396,7 @@ class FirebaseService {
           sellerId: data['sellerId'] ?? '',
           description: data['description'] ?? '',
           category: data['category'] ?? '',
-          imageUrl: data['imageUrl'] ?? '',
+          imageUrl: imageUrl,
           averageRating: (data['averageRating'] as num?)?.toDouble() ?? 0.0,
           reviews: List<Map<String, dynamic>>.from(data['reviews'] ?? []),
           comments: List<Map<String, dynamic>>.from(data['comments'] ?? []),
@@ -232,6 +414,12 @@ class FirebaseService {
         .map((snapshot) {
       return snapshot.docs.map((doc) {
         final data = doc.data();
+
+        // ✅ FIX 3: Normalize empty strings to null when reading (same as getAllSpices)
+        final rawUrl = data['imageUrl'];
+        final imageUrl =
+            (rawUrl is String && rawUrl.trim().isNotEmpty) ? rawUrl : null;
+
         return Spice(
           id: data['id'] ?? '',
           name: data['name'] ?? '',
@@ -239,7 +427,7 @@ class FirebaseService {
           sellerId: data['sellerId'] ?? '',
           description: data['description'] ?? '',
           category: data['category'] ?? '',
-          imageUrl: data['imageUrl'] ?? '',
+          imageUrl: imageUrl,
           averageRating: (data['averageRating'] as num?)?.toDouble() ?? 0.0,
           reviews: List<Map<String, dynamic>>.from(data['reviews'] ?? []),
           comments: List<Map<String, dynamic>>.from(data['comments'] ?? []),
@@ -250,11 +438,29 @@ class FirebaseService {
 
   /// Update spice with partial data
   static Future<void> updateSpice(
-      String docId, Map<String, dynamic> updateData) async {
+      String spiceId, Map<String, dynamic> updateData) async {
     try {
       // Add updatedAt timestamp
       updateData['updatedAt'] = DateTime.now().toIso8601String();
-      await _firestore.collection('spices').doc(docId).update(updateData);
+
+      // Find the document by the spice's id field (not the Firestore document ID)
+      final querySnapshot = await _firestore
+          .collection('spices')
+          .where('id', isEqualTo: spiceId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        throw Exception('Spice document not found for id: $spiceId');
+      }
+
+      // Update the first (and should be only) matching document
+      await _firestore
+          .collection('spices')
+          .doc(querySnapshot.docs.first.id)
+          .update(updateData);
+
+      print('✅ Spice updated successfully: $spiceId');
     } catch (e) {
       throw Exception('Failed to update spice: $e');
     }
@@ -284,6 +490,73 @@ class FirebaseService {
     }
   }
 
+  /// Add a review to a spice
+  static Future<void> addReview({
+    required String spiceId,
+    required double rating,
+    required String reviewText,
+    required String spiceName,
+  }) async {
+    try {
+      print('📝 Adding review for spice: $spiceId');
+      print('   Rating: $rating');
+      print('   Review text: $reviewText');
+
+      // Find the spice document by ID
+      final querySnapshot = await _firestore
+          .collection('spices')
+          .where('id', isEqualTo: spiceId)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        throw Exception('Spice not found with ID: $spiceId');
+      }
+
+      final spiceDoc = querySnapshot.docs.first;
+      final spiceData = spiceDoc.data();
+
+      // Get existing reviews or empty list
+      final existingReviews = List<Map<String, dynamic>>.from(
+        spiceData['reviews'] ?? [],
+      );
+
+      // Create new review
+      final newReview = {
+        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+        'rating': rating,
+        'comment': reviewText,
+        'text': reviewText,
+        'timestamp': DateTime.now().toIso8601String(),
+        'userName': 'Anonymous', // Could be fetched from auth if needed
+        'daysAgo': 'Recently',
+      };
+
+      // Add new review to list
+      existingReviews.add(newReview);
+
+      // Calculate new average rating
+      double totalRating = 0;
+      for (var review in existingReviews) {
+        totalRating += (review['rating'] as num).toDouble();
+      }
+      final averageRating = totalRating / existingReviews.length;
+
+      // Update spice with new reviews and average rating
+      await spiceDoc.reference.update({
+        'reviews': existingReviews,
+        'averageRating': averageRating,
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+
+      print('✅ Review added successfully');
+      print('   New average rating: ${averageRating.toStringAsFixed(2)}');
+      print('   Total reviews: ${existingReviews.length}');
+    } catch (e) {
+      print('❌ Failed to add review: $e');
+      throw Exception('Failed to add review: $e');
+    }
+  }
+
   // ============== ORDERS ==============
 
   /// Helper function to convert Timestamp or String to DateTime
@@ -310,20 +583,26 @@ class FirebaseService {
 
   /// Create order when buyer buys
   static Future<String> createOrder(order_models.Order order) async {
-    print('🚀 CREATEORDER CALLED - order.id: ${order.id}');
-    print('🚀 order object: $order');
-    print('🚀 Buyer ID passed: "${order.buyerId}"');
+    print('🚀 ═══════════════════════════════════════════════════');
+    print('🚀 CREATEORDER CALLED');
+    print('🚀 order.id: ${order.id}');
+    print('🚀 order.buyerId: "${order.buyerId}"');
+    print('🚀 order.items count: ${order.items.length}');
+    print('🚀 order.items: ${order.items}');
+    print('🚀 order.totalAmount: ${order.totalAmount}');
+    print('🚀 ═══════════════════════════════════════════════════');
 
     try {
-      print('📝 Creating order: ${order.id}');
-      print('   Buyer ID: "${order.buyerId}"');
-      print('   Buyer ID is empty: ${order.buyerId.isEmpty}');
-      print('   Items count: ${order.items.length}');
+      print('📝 [createOrder] Creating order: ${order.id}');
+      print('   [createOrder] Buyer ID: "${order.buyerId}"');
+      print('   [createOrder] Buyer ID is empty: ${order.buyerId.isEmpty}');
+      print('   [createOrder] Items count: ${order.items.length}');
       for (var item in order.items) {
-        print('   - Item: ${item['name']}, Seller: ${item['sellerId']}');
+        print(
+            '   [createOrder] - Item: ${item['name']}, Seller: ${item['sellerId']}');
       }
 
-      print('🔥 About to save to Firestore...');
+      print('🔥 [createOrder] About to save to Firestore...');
       final docRef = await _firestore.collection('orders').add({
         'id': order.id,
         'buyerId': order.buyerId,
@@ -347,8 +626,11 @@ class FirebaseService {
         'createdAt': DateTime.now().toIso8601String(),
       });
 
+      print('✅ ═══════════════════════════════════════════════════');
       print('✅ Order saved to Firestore with ID: ${docRef.id}');
       print('✅ Order saved with buyerId: "${order.buyerId}"');
+      print('✅ Items saved: ${order.items.length}');
+      print('✅ ═══════════════════════════════════════════════════');
 
       // Create notifications for each seller whose products are in the order with detailed buyer info
       final Map<String, List<Map<String, dynamic>>> sellerItems = {};
@@ -423,9 +705,9 @@ Order Details:
 ━━━━━━━━━━━━━━━━━━━━━━
 ''';
 
-          print('💾 Saving notification with userId: "$sellerId"');
+          print('💾 Saving notification with sellerId: "$sellerId"');
           await _firestore.collection('notifications').add({
-            'userId': sellerId,
+            'sellerId': sellerId,
             'title': title,
             'body': body,
             'type': 'order_received',
@@ -449,9 +731,12 @@ Order Details:
 
       return docRef.id;
     } catch (e) {
-      print('❌ Order creation failed: $e');
+      print('❌ ═══════════════════════════════════════════════════');
+      print('❌ Order creation FAILED!');
+      print('❌ Error: $e');
       print('❌ Error type: ${e.runtimeType}');
-      print('❌ Full error: $e');
+      print('❌ Error toString: ${e.toString()}');
+      print('❌ ═══════════════════════════════════════════════════');
       throw Exception('Failed to create order: $e');
     }
   }
@@ -476,10 +761,14 @@ Order Details:
       // Sort orders by date in code (descending)
       final docs = snapshot.docs;
       docs.sort((a, b) {
-        final dateA =
-            DateTime.parse(a['orderDate'] ?? DateTime.now().toIso8601String());
-        final dateB =
-            DateTime.parse(b['orderDate'] ?? DateTime.now().toIso8601String());
+        final aData = a.data();
+        final bData = b.data();
+        final dateA = _convertToDateTime(aData['orderDate']) ??
+            _convertToDateTime(aData['createdAt']) ??
+            DateTime.now();
+        final dateB = _convertToDateTime(bData['orderDate']) ??
+            _convertToDateTime(bData['createdAt']) ??
+            DateTime.now();
         return dateB.compareTo(dateA); // Descending order
       });
 
@@ -488,19 +777,36 @@ Order Details:
           final data = doc.data();
           print(
               '📄 Processing order: ${data['id']} with status: ${data['status']}');
+          print('   Keys in order doc: ${data.keys.toList()}');
+          print('   items field exists: ${data.containsKey('items')}');
+          print('   items field value: ${data['items']}');
+          print('   items field type: ${data['items'].runtimeType}');
 
           // Handle manual document fields (adapt to app's expected structure)
-          final items = data['items'] != null
-              ? List<Map<String, dynamic>>.from(data['items'])
-              : [
-                  {
-                    'name': 'Manual Spice Order',
-                    'spiceId': data['spiceId'] ?? '',
-                    'sellerId': data['sellerId'] ?? '',
-                    'quantity': data['quantity'] ?? 1,
-                    'price': (data['total Price'] as num?)?.toDouble() ?? 0.0,
-                  }
-                ];
+          List<Map<String, dynamic>> items = [];
+
+          if (data['items'] != null && (data['items'] as List).isNotEmpty) {
+            print('   ✅ Using items from data');
+            items = List<Map<String, dynamic>>.from(data['items']);
+          } else {
+            print(
+                '   ⚠️ Items missing or empty, checking for individual fields');
+            // Only use fallback if truly no items
+            if (data['spiceId'] != null &&
+                data['spiceId'].toString().isNotEmpty) {
+              items = [
+                {
+                  'name': data['name'] ?? 'Manual Spice Order',
+                  'spiceId': data['spiceId'] ?? '',
+                  'sellerId': data['sellerId'] ?? '',
+                  'quantity': data['quantity'] ?? 1,
+                  'price': (data['price'] as num?)?.toDouble() ?? 0.0,
+                }
+              ];
+            }
+          }
+
+          print('   Final items count: ${items.length}');
 
           final totalAmount = (data['totalAmount'] as num?)?.toDouble() ??
               (data['total Price'] as num?)?.toDouble() ??
@@ -759,16 +1065,16 @@ Order Details:
 
   /// Get notifications for user
   static Stream<List<Map<String, dynamic>>> getNotifications(String userId) {
-    print('📢 getNotifications called for userId: $userId');
-    print('   Looking for documents where userId == "$userId"');
+    print('📢 getNotifications called for sellerId: $userId');
+    print('   Looking for documents where sellerId == "$userId"');
     return _firestore
         .collection('notifications')
-        .where('userId', isEqualTo: userId)
+        .where('sellerId', isEqualTo: userId)
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
       print(
-          '📬 Retrieved ${snapshot.docs.length} notifications from Firebase for userId: $userId');
+          '📬 Retrieved ${snapshot.docs.length} notifications from Firebase for sellerId: $userId');
 
       // Log all documents in the collection to understand the data structure
       if (snapshot.docs.isEmpty) {
@@ -777,28 +1083,51 @@ Order Details:
       }
 
       final notifications = snapshot.docs.map((doc) {
-        final data = doc.data();
-        final buyerName = data['buyerName'] ?? 'Unknown Buyer';
-        print(
-            '🔔 Notification: id=${doc.id}, type=${data['type']}, userId=${data['userId']}, read=${data['read']}, buyerName=$buyerName');
-        return {
-          'id': doc.id,
-          'title': data['title'],
-          'body': data['body'],
-          'type': data['type'],
-          'timestamp': data['timestamp'],
-          'read': data['read'],
-          'orderId': data['orderId'],
-          'buyerId': data['buyerId'],
-          'buyerName': buyerName,
-          'buyerEmail': data['buyerEmail'] ?? 'N/A',
-          'buyerPhone': data['buyerPhone'] ?? 'N/A',
-          'orderAmount': data['orderAmount'] ?? 0.0,
-          'itemCount': data['itemCount'] ?? 0,
-        };
+        try {
+          final data = doc.data();
+          final buyerName = data['buyerName'] ?? 'Unknown Buyer';
+          print(
+              '🔔 Notification: id=${doc.id}, type=${data['type']}, sellerId=${data['sellerId']}, read=${data['read']}, buyerName=$buyerName');
+          return {
+            'id': doc.id,
+            'title': data['title'] ?? 'New Order',
+            'body': data['body'] ?? 'You have a new order',
+            'type': data['type'] ?? 'order_received',
+            'timestamp': data['timestamp'] ?? DateTime.now().toIso8601String(),
+            'read': data['read'] ?? false,
+            'orderId': data['orderId'] ?? '',
+            'buyerId': data['buyerId'] ?? '',
+            'buyerName': buyerName,
+            'buyerEmail': data['buyerEmail'] ?? 'N/A',
+            'buyerPhone': data['buyerPhone'] ?? 'N/A',
+            'orderAmount': data['orderAmount'] ?? 0.0,
+            'itemCount': data['itemCount'] ?? 0,
+          };
+        } catch (e) {
+          print('❌ Error mapping notification doc: $e');
+          return {
+            'id': doc.id,
+            'title': 'Error',
+            'body': 'Could not load notification',
+            'type': 'error',
+            'timestamp': DateTime.now().toIso8601String(),
+            'read': false,
+            'orderId': '',
+            'buyerId': '',
+            'buyerName': 'Unknown',
+            'buyerEmail': 'N/A',
+            'buyerPhone': 'N/A',
+            'orderAmount': 0.0,
+            'itemCount': 0,
+          };
+        }
       }).toList();
       print('✅ Mapped ${notifications.length} notifications');
       return notifications;
+    }).handleError((error) {
+      print('❌ Error in getNotifications stream: $error');
+      print('❌ Error type: ${error.runtimeType}');
+      return <Map<String, dynamic>>[];
     });
   }
 
@@ -846,17 +1175,153 @@ Order Details:
         .map((doc) => doc.data());
   }
 
-  /// Get seller name by seller ID
+  /// Get seller name by seller ID (with comprehensive fallback logic)
   Future<String> getSellerName(String sellerId) async {
     try {
-      final doc = await _firestore.collection('users').doc(sellerId).get();
-      if (doc.exists) {
-        return doc.data()?['name'] ?? 'Unknown Seller';
+      if (sellerId.isEmpty) {
+        return 'Unknown Seller';
       }
-      return 'Unknown Seller';
+
+      // First, try getting from users collection
+      try {
+        final userDoc =
+            await _firestore.collection('users').doc(sellerId).get();
+        if (userDoc.exists) {
+          final name = userDoc.data()?['name'];
+          if (name != null && name.toString().isNotEmpty) {
+            return name.toString();
+          }
+        }
+      } catch (e) {
+        print('Info: Could not fetch from users: $e');
+      }
+
+      // Second, try getting from spices collection
+      try {
+        final spicesQuery = await _firestore
+            .collection('spices')
+            .where('sellerId', isEqualTo: sellerId)
+            .limit(1)
+            .get();
+
+        if (spicesQuery.docs.isNotEmpty) {
+          final sellerName = spicesQuery.docs.first.data()['sellerName'];
+          if (sellerName != null && sellerName.toString().isNotEmpty) {
+            return sellerName.toString();
+          }
+        }
+      } catch (e) {
+        print('Info: Could not fetch from spices: $e');
+      }
+
+      // If all else fails, return a reasonable default
+      return 'Seller';
     } catch (e) {
-      print('Error getting seller name: $e');
-      return 'Unknown Seller';
+      print('Error in getSellerName: $e');
+      return 'Seller';
+    }
+  }
+
+  /// Debug: Print all orders in Firestore for current user
+  static Future<void> debugPrintAllOrders(String buyerId) async {
+    try {
+      print(
+          '\n🔍 [DEBUG] Checking all orders in Firestore for buyerId: $buyerId');
+      final ordersSnapshot = await _firestore
+          .collection('orders')
+          .where('buyerId', isEqualTo: buyerId)
+          .get();
+
+      print('📊 Total orders found: ${ordersSnapshot.docs.length}');
+
+      for (var doc in ordersSnapshot.docs) {
+        final data = doc.data();
+        print('\n  📋 Order ID: ${doc.id}');
+        print('     id field: ${data['id']}');
+        print('     buyerId: ${data['buyerId']}');
+        print('     status: ${data['status']}');
+        print('     totalAmount: ${data['totalAmount']}');
+        print('     Has items field: ${data.containsKey('items')}');
+
+        final items = data['items'];
+        if (items != null && items is List) {
+          print('     Items count: ${items.length}');
+          for (int i = 0; i < items.length; i++) {
+            final item = items[i];
+            print(
+                '       Item $i: name=${item['name']}, price=${item['price']}, sellerId=${item['sellerId']}');
+          }
+        } else {
+          print('     Items field is null or not a list: $items');
+        }
+      }
+    } catch (e) {
+      print('❌ Error in debugPrintAllOrders: $e');
+    }
+  }
+
+  /// Debug: Print all spices with given seller ID
+  static Future<void> debugPrintSellerSpices(String sellerId) async {
+    try {
+      print('\n🔍 [DEBUG] Checking all spices for sellerId: $sellerId');
+      final spicesSnapshot = await _firestore
+          .collection('spices')
+          .where('sellerId', isEqualTo: sellerId)
+          .get();
+
+      print('📊 Total spices found: ${spicesSnapshot.docs.length}');
+
+      for (var doc in spicesSnapshot.docs) {
+        final data = doc.data();
+        print('\n  🛒 Spice ID: ${doc.id}');
+        print('     id field: ${data['id']}');
+        print('     name: ${data['name']}');
+        print('     sellerId: ${data['sellerId']}');
+        print('     price: ${data['price']}');
+      }
+    } catch (e) {
+      print('❌ Error in debugPrintSellerSpices: $e');
+    }
+  }
+
+  /// Create or update seller profile
+  static Future<void> createSellerProfile(
+      String sellerId, String sellerName) async {
+    try {
+      print('💾 Creating/Updating seller profile: $sellerId -> $sellerName');
+      await _firestore.collection('users').doc(sellerId).set({
+        'id': sellerId,
+        'name': sellerName,
+        'role': 'seller',
+        'createdAt': DateTime.now().toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+      print('✅ Seller profile created/updated');
+    } catch (e) {
+      print('❌ Error creating seller profile: $e');
+    }
+  }
+
+  /// Update all spices for a seller with their name
+  static Future<void> updateSellerSpicesWithName(
+      String sellerId, String sellerName) async {
+    try {
+      print(
+          '🔄 Updating all spices for seller: $sellerId with name: $sellerName');
+      final spicesQuery = await _firestore
+          .collection('spices')
+          .where('sellerId', isEqualTo: sellerId)
+          .get();
+
+      for (var doc in spicesQuery.docs) {
+        await doc.reference.update({
+          'sellerName': sellerName,
+          'updatedAt': DateTime.now().toIso8601String(),
+        });
+      }
+      print('✅ Updated ${spicesQuery.docs.length} spices with seller name');
+    } catch (e) {
+      print('❌ Error updating spices: $e');
     }
   }
 }

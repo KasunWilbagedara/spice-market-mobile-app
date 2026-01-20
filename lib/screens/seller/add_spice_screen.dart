@@ -128,10 +128,11 @@ class _AddSpiceScreenState extends State<AddSpiceScreen> {
             if (imageUrl.isEmpty) {
               imageUrl = null;
               print('⚠️ Upload returned empty - set to null');
-            } else if (imageUrl.startsWith('http')) {
-              print('✅ Valid Firebase Storage URL received');
+            } else if (imageUrl.startsWith('http') ||
+                imageUrl.startsWith('data:')) {
+              print('✅ Valid image URL received (Firebase or Data URL)');
             } else {
-              print('⚠️ URL does not start with http: $imageUrl');
+              print('⚠️ URL format unexpected: $imageUrl');
             }
           } catch (uploadError) {
             print('❌ Upload exception caught: $uploadError');
@@ -222,8 +223,9 @@ class _AddSpiceScreenState extends State<AddSpiceScreen> {
       // Verify image URL is accessible if present
       if (spice.imageUrl != null && spice.imageUrl!.isNotEmpty) {
         print('🔗 Image URL length: ${spice.imageUrl!.length}');
-        if (!spice.imageUrl!.startsWith('http')) {
-          print('⚠️ Warning: Image URL does not start with http!');
+        if (!spice.imageUrl!.startsWith('http') &&
+            !spice.imageUrl!.startsWith('data:')) {
+          print('⚠️ Warning: Image URL format unexpected!');
         }
       }
 

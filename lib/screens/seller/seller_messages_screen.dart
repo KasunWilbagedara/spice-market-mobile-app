@@ -219,6 +219,40 @@ class _SellerMessagesScreenState extends State<SellerMessagesScreen> {
         print(
             '🔄 StreamBuilder state: ${notificationSnapshot.connectionState}, hasData: ${notificationSnapshot.hasData}, data length: ${notificationSnapshot.data?.length ?? 0}');
 
+        // Handle errors
+        if (notificationSnapshot.hasError) {
+          print('❌ StreamBuilder error: ${notificationSnapshot.error}');
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 80,
+                  color: Colors.red.shade300,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Error loading notifications',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.red.shade700,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '${notificationSnapshot.error}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red.shade500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
         if (notificationSnapshot.connectionState == ConnectionState.waiting) {
           return Center(
             child: CircularProgressIndicator(

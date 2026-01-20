@@ -344,7 +344,10 @@ class _SellerHomeState extends State<SellerHome> {
                                     final hasImage = spice.imageUrl != null &&
                                         spice.imageUrl!.isNotEmpty &&
                                         (spice.imageUrl!.startsWith('/') ||
-                                            spice.imageUrl!.startsWith('http'));
+                                            spice.imageUrl!
+                                                .startsWith('http') ||
+                                            spice.imageUrl!
+                                                .startsWith('data:'));
 
                                     print(
                                         '🖼️ ${spice.name}: hasImage=$hasImage, url=${spice.imageUrl ?? "NULL"}');
@@ -395,11 +398,13 @@ class _SellerHomeState extends State<SellerHome> {
                                   // DEBUG: Show imageUrl status
                                   SizedBox(height: 4),
                                   Text(
-                                    spice.imageUrl != null && spice.imageUrl!.isNotEmpty
+                                    spice.imageUrl != null &&
+                                            spice.imageUrl!.isNotEmpty
                                         ? 'Image: ✓ (${spice.imageUrl!.length} chars)'
                                         : 'Image: ✗ NONE',
                                     style: TextStyle(
-                                        color: (spice.imageUrl != null && spice.imageUrl!.isNotEmpty)
+                                        color: (spice.imageUrl != null &&
+                                                spice.imageUrl!.isNotEmpty)
                                             ? Colors.blue.shade600
                                             : Colors.red.shade600,
                                         fontSize: 10),

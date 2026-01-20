@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io' as io;
+import 'dart:convert' show base64Decode;
 
 /// Helper function to display images safely across all platforms
 /// On Web: Only shows network images or placeholders
@@ -60,7 +61,7 @@ Widget buildImageWidget({
   return fallback;
 }
 
-/// Simplified wrapper for Image.file that safely handles Web platform
+/// Simplified wrapper for Image.file that safely handles Web platform and data URLs
 Widget safeImageFile(
   String filePath, {
   required double width,
@@ -107,6 +108,63 @@ Widget safeImageFile(
         );
       },
     );
+  }
+
+  // Handle base64 data URLs (e.g., "data:image/jpeg;base64,/9j/4AAQSkZJRgABA...")
+  if (filePath.startsWith('data:')) {
+    print('📊 Loading image from base64 data URL (${filePath.length} chars)');
+    try {
+      // Extract base64 string from data URL
+      // Format: data:image/jpeg;base64,<base64-string>
+      final base64String = filePath.split(',').last;
+      final imageBytes = base64Decode(base64String);
+
+      return Image.memory(
+        imageBytes,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Error loading base64 image: $error');
+          return errorBuilder ??
+              Container(
+                width: width,
+                height: height,
+                color: Colors.grey.shade300,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.image_not_supported, color: Colors.red),
+                    SizedBox(height: 4),
+                    Text(
+                      'Failed to load',
+                      style: TextStyle(fontSize: 10, color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
+        },
+      );
+    } catch (e) {
+      print('❌ Base64 decoding failed: $e');
+      return Container(
+        width: width,
+        height: height,
+        color: Colors.grey.shade300,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.broken_image, color: Colors.red),
+            SizedBox(height: 4),
+            Text(
+              'Invalid image',
+              style: TextStyle(fontSize: 10, color: Colors.red),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   // For file paths, check if we can use Image.file
