@@ -1,7 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io' as io;
 import 'dart:typed_data' as typed_data;
+import 'dart:convert' show base64Encode;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../models/order.dart' as order_models;
 import '../models/spice.dart';
 import '../models/message.dart' as msg;
@@ -38,45 +41,168 @@ class FirebaseService {
 
   // ============== IMAGE STORAGE ==============
 
-  /// Upload spice image to Firebase Storage from XFile (works on Web and native)
+  /// Upload spice image to Firebase Storage from XFile with smart retry
+  /// Falls back to base64 data URL if storage upload fails (web only)
   static Future<String> uploadSpiceImageFromXFile(
       dynamic xFile, String spiceId) async {
     try {
       print('📸 Uploading image for spice: $spiceId');
 
-      // Create unique filename with timestamp
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'spices/$spiceId/$timestamp.jpg';
-
-      // Read file bytes (works on Web and native)
+      // Read file bytes
       print('📥 Reading image bytes...');
       var bytes = await xFile.readAsBytes();
       final sizeKB = bytes.length / 1024;
       print('📥 Image size: ${sizeKB.toStringAsFixed(2)} KB');
+      print('📥 File name: ${xFile.name}');
 
-      // Upload file to Firebase Storage
-      print('📤 Uploading to Firebase...');
-      final ref = _storage.ref(fileName);
+      // On web: immediately use base64 for small images (avoids CORS)
+      if (kIsWeb && sizeKB < 200) {
+        print(
+            '🌐 Web platform detected - using base64 data URL (CORS-safe)...');
+        final dataUrl = _createBase64DataUrl(bytes);
+        print('✅ Image prepared as data URL!');
+        print('🔗 Data URL: ${dataUrl.substring(0, 50)}...');
+        return dataUrl;
+      }
 
-      // putData returns a Future<TaskSnapshot>, not UploadTask
-      // We need to await it directly
-      final snapshot = await ref.putData(
-        bytes,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
+      // On native: try Firebase Storage upload
+      try {
+        final downloadUrl =
+            await _uploadToStorageWithRetry(bytes, spiceId, xFile.name);
+        print('✅ Image uploaded successfully!');
+        print('🔗 Download URL: $downloadUrl');
+        return downloadUrl;
+      } catch (storageError) {
+        print('⚠️ Storage upload failed: $storageError');
 
-      // Get download URL from the snapshot
-      print('🔗 Getting download URL...');
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      print('✅ Image uploaded successfully!');
-      print('🔗 Download URL: $downloadUrl');
+        // Final fallback for small images: use base64 data URL
+        if (sizeKB < 200) {
+          print('🔄 Fallback: using base64 data URL...');
+          return _createBase64DataUrl(bytes);
+        }
 
-      return downloadUrl;
+        throw storageError;
+      }
     } catch (e) {
-      print('❌ Image upload failed: $e');
+      print('❌ Image upload completely failed: $e');
       print('Stack trace: ${e.toString()}');
       throw Exception('Failed to upload image: $e');
     }
+  }
+
+  /// Create a base64 data URL (works on web, good for small images)
+  static String _createBase64DataUrl(typed_data.Uint8List bytes) {
+    final base64String = base64Encode(bytes);
+    final dataUrl = 'data:image/jpeg;base64,$base64String';
+    print(
+        '✅ Created base64 data URL (${(bytes.length / 1024).toStringAsFixed(2)} KB)');
+    return dataUrl;
+  }
+
+  /// Alternative storage upload with different approach
+  static Future<String> _uploadToStorageAlternative(
+    typed_data.Uint8List bytes,
+    String spiceId,
+    String fileName,
+  ) async {
+    try {
+      print('📤 Trying alternative storage upload...');
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final storagePath = 'temp/$spiceId/$timestamp.jpg';
+
+      print('📋 Uploading to: $storagePath');
+      final ref = _storage.ref(storagePath);
+
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        cacheControl: 'public, max-age=31536000',
+      );
+
+      final snapshot = await ref.putData(bytes, metadata).timeout(
+            const Duration(seconds: 45), // Shorter timeout
+          );
+
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      print('✅ Alternative upload succeeded');
+      return downloadUrl;
+    } catch (e) {
+      print('❌ Alternative upload also failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Upload to Firebase Storage with exponential backoff retry
+  static Future<String> _uploadToStorageWithRetry(
+    typed_data.Uint8List bytes,
+    String spiceId,
+    String fileName, {
+    int maxAttempts = 5,
+    int initialDelayMs = 500,
+  }) async {
+    int attempt = 0;
+    Exception? lastError;
+
+    while (attempt < maxAttempts) {
+      try {
+        attempt++;
+        print('📤 Upload attempt $attempt/$maxAttempts...');
+
+        // Create unique filename with timestamp
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final storagePath = 'spices/$spiceId/$timestamp.jpg';
+
+        print('📋 Uploading to: $storagePath');
+        final ref = _storage.ref(storagePath);
+
+        // Set metadata with proper cache headers
+        final metadata = SettableMetadata(
+          contentType: 'image/jpeg',
+          cacheControl: 'public, max-age=31536000', // 1 year
+          customMetadata: {
+            'uploaded-by': 'flutter-app',
+            'timestamp': timestamp.toString(),
+            'original-name': fileName,
+          },
+        );
+
+        // Upload with timeout
+        final snapshot = await ref.putData(bytes, metadata).timeout(
+          const Duration(seconds: 90),
+          onTimeout: () {
+            throw Exception(
+                'Upload timeout after 90 seconds on attempt $attempt');
+          },
+        );
+
+        // Get download URL
+        final downloadUrl = await snapshot.ref.getDownloadURL();
+        print('✅ Upload succeeded on attempt $attempt');
+        print('🔗 URL: $downloadUrl');
+        return downloadUrl;
+      } catch (e) {
+        lastError = Exception('Attempt $attempt failed: $e');
+        print('❌ $lastError');
+
+        // Don't retry on auth errors
+        if (e.toString().contains('permission') ||
+            e.toString().contains('auth') ||
+            e.toString().contains('unauthorized')) {
+          print('⛔ Authentication error - not retrying');
+          rethrow;
+        }
+
+        if (attempt < maxAttempts) {
+          // Exponential backoff: 500ms, 1s, 2s, 4s, 8s
+          final delayMs = initialDelayMs * (1 << (attempt - 1));
+          print(
+              '⏳ Retrying in ${delayMs}ms... (attempt $attempt/$maxAttempts)');
+          await Future.delayed(Duration(milliseconds: delayMs));
+        }
+      }
+    }
+
+    print('❌ Upload failed after $maxAttempts attempts');
+    throw lastError ?? Exception('Upload failed after $maxAttempts attempts');
   }
 
   /// Upload spice image to Firebase Storage from file path
@@ -193,13 +319,20 @@ class FirebaseService {
         'category': spice.category ?? '',
         'sellerId': spice.sellerId,
         'sellerName': sellerName,
-        'imageUrl': spice.imageUrl ?? '',
         'averageRating': spice.averageRating,
         'reviews': spice.reviews,
         'comments': spice.comments,
         'createdAt': DateTime.now().toIso8601String(),
         'updatedAt': DateTime.now().toIso8601String(),
       };
+
+      // ✅ FIX 1: Only save imageUrl if valid (NEVER save empty strings)
+      if (spice.imageUrl != null && spice.imageUrl!.trim().isNotEmpty) {
+        spiceData['imageUrl'] = spice.imageUrl!;
+        print('✅ imageUrl saved: ${spice.imageUrl}');
+      } else {
+        print('⚠️ No imageUrl provided, field will not be saved to Firestore');
+      }
 
       print('💾 Firestore data imageUrl field: "${spiceData['imageUrl']}"');
 
@@ -212,6 +345,36 @@ class FirebaseService {
     }
   }
 
+  /// Validate and get image URL with proper Firebase Storage URL format
+  static Future<String?> validateImageUrl(String? imageUrl) async {
+    if (imageUrl == null || imageUrl.trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      // If it's already a download URL, return it
+      if (imageUrl.contains('firebasestorage.googleapis.com')) {
+        print('✅ Image URL valid: ${imageUrl.substring(0, 50)}...');
+        return imageUrl;
+      }
+
+      // If it's a file path, try to get the URL from storage
+      if (imageUrl.startsWith('spices/')) {
+        final ref = _storage.ref(imageUrl);
+        final url = await ref.getDownloadURL();
+        print(
+            '✅ Retrieved image URL from Firebase: ${url.substring(0, 50)}...');
+        return url;
+      }
+
+      // Otherwise assume it's a valid URL
+      return imageUrl;
+    } catch (e) {
+      print('⚠️ Error validating image URL: $e');
+      return null;
+    }
+  }
+
   /// Get all spices (for buyer to browse)
   static Stream<List<Spice>> getAllSpices() {
     return _firestore.collection('spices').snapshots().map((snapshot) {
@@ -220,6 +383,12 @@ class FirebaseService {
         print('📊 Spice data from Firestore:');
         print('  Name: ${data['name']}');
         print('  ImageURL field value: ${data['imageUrl'] ?? "MISSING"}');
+
+        // ✅ FIX 2: Normalize empty strings to null when reading
+        final rawUrl = data['imageUrl'];
+        final imageUrl =
+            (rawUrl is String && rawUrl.trim().isNotEmpty) ? rawUrl : null;
+
         return Spice(
           id: data['id'] ?? '',
           name: data['name'] ?? '',
@@ -227,7 +396,7 @@ class FirebaseService {
           sellerId: data['sellerId'] ?? '',
           description: data['description'] ?? '',
           category: data['category'] ?? '',
-          imageUrl: data['imageUrl'] ?? '',
+          imageUrl: imageUrl,
           averageRating: (data['averageRating'] as num?)?.toDouble() ?? 0.0,
           reviews: List<Map<String, dynamic>>.from(data['reviews'] ?? []),
           comments: List<Map<String, dynamic>>.from(data['comments'] ?? []),
@@ -245,6 +414,12 @@ class FirebaseService {
         .map((snapshot) {
       return snapshot.docs.map((doc) {
         final data = doc.data();
+
+        // ✅ FIX 3: Normalize empty strings to null when reading (same as getAllSpices)
+        final rawUrl = data['imageUrl'];
+        final imageUrl =
+            (rawUrl is String && rawUrl.trim().isNotEmpty) ? rawUrl : null;
+
         return Spice(
           id: data['id'] ?? '',
           name: data['name'] ?? '',
@@ -252,7 +427,7 @@ class FirebaseService {
           sellerId: data['sellerId'] ?? '',
           description: data['description'] ?? '',
           category: data['category'] ?? '',
-          imageUrl: data['imageUrl'] ?? '',
+          imageUrl: imageUrl,
           averageRating: (data['averageRating'] as num?)?.toDouble() ?? 0.0,
           reviews: List<Map<String, dynamic>>.from(data['reviews'] ?? []),
           comments: List<Map<String, dynamic>>.from(data['comments'] ?? []),
@@ -263,11 +438,29 @@ class FirebaseService {
 
   /// Update spice with partial data
   static Future<void> updateSpice(
-      String docId, Map<String, dynamic> updateData) async {
+      String spiceId, Map<String, dynamic> updateData) async {
     try {
       // Add updatedAt timestamp
       updateData['updatedAt'] = DateTime.now().toIso8601String();
-      await _firestore.collection('spices').doc(docId).update(updateData);
+
+      // Find the document by the spice's id field (not the Firestore document ID)
+      final querySnapshot = await _firestore
+          .collection('spices')
+          .where('id', isEqualTo: spiceId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        throw Exception('Spice document not found for id: $spiceId');
+      }
+
+      // Update the first (and should be only) matching document
+      await _firestore
+          .collection('spices')
+          .doc(querySnapshot.docs.first.id)
+          .update(updateData);
+
+      print('✅ Spice updated successfully: $spiceId');
     } catch (e) {
       throw Exception('Failed to update spice: $e');
     }

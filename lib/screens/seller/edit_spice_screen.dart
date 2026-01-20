@@ -126,7 +126,8 @@ class _EditSpiceScreenState extends State<EditSpiceScreen> {
                         child: widget.spice.imageUrl != null &&
                                 widget.spice.imageUrl!.isNotEmpty &&
                                 (widget.spice.imageUrl!.startsWith('/') ||
-                                    widget.spice.imageUrl!.startsWith('http'))
+                                    widget.spice.imageUrl!.startsWith('http') ||
+                                    widget.spice.imageUrl!.startsWith('data:'))
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: safeImageFile(
