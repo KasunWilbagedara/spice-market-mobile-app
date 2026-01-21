@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io' as io;
 import 'dart:typed_data' as typed_data;
 import 'dart:convert' show base64Encode;
@@ -97,38 +96,6 @@ class FirebaseService {
     print(
         '✅ Created base64 data URL (${(bytes.length / 1024).toStringAsFixed(2)} KB)');
     return dataUrl;
-  }
-
-  /// Alternative storage upload with different approach
-  static Future<String> _uploadToStorageAlternative(
-    typed_data.Uint8List bytes,
-    String spiceId,
-    String fileName,
-  ) async {
-    try {
-      print('📤 Trying alternative storage upload...');
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final storagePath = 'temp/$spiceId/$timestamp.jpg';
-
-      print('📋 Uploading to: $storagePath');
-      final ref = _storage.ref(storagePath);
-
-      final metadata = SettableMetadata(
-        contentType: 'image/jpeg',
-        cacheControl: 'public, max-age=31536000',
-      );
-
-      final snapshot = await ref.putData(bytes, metadata).timeout(
-            const Duration(seconds: 45), // Shorter timeout
-          );
-
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      print('✅ Alternative upload succeeded');
-      return downloadUrl;
-    } catch (e) {
-      print('❌ Alternative upload also failed: $e');
-      rethrow;
-    }
   }
 
   /// Upload to Firebase Storage with exponential backoff retry

@@ -5,7 +5,6 @@ import '../../utils/page_transition.dart';
 import '../../widgets/seller_profile_widget.dart';
 import '../../widgets/reviews_widget.dart';
 import '../../widgets/comments_widget.dart';
-import '../../widgets/firebase_image_widget.dart';
 import '../../services/firebase_service.dart';
 import 'interactive_buyer_home.dart';
 import 'messaging_screen.dart';

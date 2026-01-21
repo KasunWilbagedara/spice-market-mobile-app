@@ -1,13 +1,15 @@
-import * as functions from 'firebase-functions/v2/https';
+import { onRequest, onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import * as cors from 'cors';
+import cors from 'cors';
+import { Request, Response } from 'express';
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
 const bucket = admin.storage().bucket();
 
+// CORS middleware - allow requests from localhost and production
 // CORS middleware - allow requests from localhost and production
 const corsHandler = cors({
   origin: [
@@ -29,9 +31,9 @@ const corsHandler = cors({
  * Accepts multipart/form-data with image file and spiceId
  * Returns download URL for the uploaded image
  */
-export const uploadSpiceImage = functions.https.onRequest(
+export const uploadSpiceImage = onRequest(
   { cors: true },
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
       res.set('Access-Control-Allow-Origin', '*');
@@ -138,13 +140,13 @@ export const uploadSpiceImage = functions.https.onRequest(
  * Cloud Function to get download URL for a specific file
  * This can be used to verify if a file exists
  */
-export const getImageUrl = functions.https.onCall(
+export const getImageUrl = onCall(
   { cors: true },
   async (request) => {
     const { fileName } = request.data;
 
     if (!fileName) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'invalid-argument',
         'Missing fileName parameter'
       );
@@ -155,7 +157,7 @@ export const getImageUrl = functions.https.onCall(
       const exists = (await file.exists())[0];
 
       if (!exists) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           'not-found',
           'File not found'
         );
@@ -170,7 +172,7 @@ export const getImageUrl = functions.https.onCall(
       };
     } catch (error) {
       logger.error('Get URL failed:', error);
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         'internal',
         'Failed to get image URL',
         error instanceof Error ? error.message : 'Unknown error'
